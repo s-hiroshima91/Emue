@@ -1,0 +1,49 @@
+/*ppuのヘッダー*/
+
+#ifndef PPU_H
+#define PPU_H
+
+struct sprite{
+	int counter = 8;
+	int x = 0;
+	bool bgFlg;
+	char pattern[8][8] = {};
+};
+
+class IOPort;
+
+class Ppu{
+
+/*void CreateImg();
+void DrowImg();*/
+
+public:
+	char ctrRegister1;
+	char ctrRegister2;
+	bool vMirror;
+
+	char scroll[2] = {};
+	int lineCounter = 0;
+	void CreateImg(char *ptr);
+	int PrePattern(int x, int y, int name, int line, bool flg);
+	char PreConvColor(int x, int y, int name, int line);
+	void SpriteImg(int x, int y);
+
+	Ppu(char *romDate, char header6, IOPort *ioP);
+//	char Sequence(char counter);
+
+	char ppuTable[0x1000];
+	char ppuPalette[0x020];
+	char spriteTable[0xff] = {};
+	char *rom;
+	struct sprite spriteBuffer[8];
+	int bufferNum = 0;
+
+	char *ppuIO;
+	char *padIO;
+	IOPort *ioPort;
+	char *MemoryMap(unsigned short addr);
+
+};
+
+#endif
