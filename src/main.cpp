@@ -1,8 +1,5 @@
 #include <iostream>
-#include <fstream>
-#include <bitset>
 #include <chrono>
-//#include "SDL2/SDL.h"
 #include "readrom.h"
 #include "cpu.h"
 #include "ioport.h"
@@ -42,9 +39,9 @@ int main(int argc, char *argv[])
 	bgColor.h = winY * magni;
 
 
-		std::chrono::high_resolution_clock::time_point start, end;
+	std::chrono::high_resolution_clock::time_point start, end;
 	
-		/* 初期化 */
+	/* 初期化 */
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 	{
     	std::cout << "error" << std::endl;
@@ -66,13 +63,12 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	
+	/*各クラスの生成*/
 	ReadRom RR(renderer);
 	IOPort *IOP = new IOPort;
 	Ppu *Ppu = new class Ppu(RR.chrRom, RR.romHeader[6], IOP);
 	Cpu Cpu(RR.prgRom, RR.romHeader[4], IOP);
 	Controller *Controller = new class Controller(posX, posY, winX, winY, magni);
-	
-
 
 
 	/* イベントループ */
@@ -95,9 +91,9 @@ int main(int argc, char *argv[])
 					touchX = static_cast<int>(event.tfinger.x * x);
 					touchY = static_cast<int>(event.tfinger.y * y);
 				}
-//				quit_flg -= 1;
+
 				IOP->padTemp |= Controller->InputDown(touchX, touchY, event.tfinger.fingerId);
-//				Cpu.nmi = 1;
+
 				break;
 				case SDL_FINGERUP:
 				IOP->padTemp &= Controller->InputUp(event.tfinger.fingerId);
@@ -107,25 +103,9 @@ int main(int argc, char *argv[])
 				break;
 			}
         }
-        
-//        quit_flg = 0;
-
-/*	while (counter < 29780){
-		counter += Cpu.TestRun();
-		if (quit_flg == 0){
-//			std::cout << "op:0x_" << std::hex << +Cpu.opeCode << " PC:0x_" << +Cpu.registerPC << " SP:0x_" << std::bitset<8>(Cpu.registerP) << " a:0x_" <<  +Cpu.registerA << " x:0x_" << +Cpu.registerX << " y:0x_" <<+Cpu.registerY << " 0x2006:_0x" << +IOP->writeAddr << " 0x2007:_0x" << +IOP->ppuIO[0x0007] << std::endl;
-//std::cout << std::hex << +Cpu.registerPC << " " << +Cpu.registerP << " " << +Cpu.registerS  << std::endl;
-		}
-	}*/
-
-//	IOP->ppuIO[0x0002] = 0b10000000;
-	
-/*	for (int i = 0; i < 9000; i++){
-		Cpu.TestRun();
-	}*/
-
-	while (counter < 341){
-		counter += 3 * Cpu.TestRun();
+        /*-1ライン目の処理*/
+        while (counter < 341){
+		counter += 3 * Cpu.mainRun();
 	}
 	counter -= 341;
 	
@@ -144,9 +124,11 @@ int main(int argc, char *argv[])
 	
     imgDot.y = posY;
     
+    /*0ライン目から239ライン目の処理*/
 	for (int i = 0; i < winY; i++){
+		/*1ライン以上のppuの時間が経過するまでcpuを動かす*/
 		while (counter < 341){
-			counter += 3 * Cpu.TestRun();
+			counter += 3 * Cpu.mainRun();
 		}
 		counter -= 341;
 
@@ -176,19 +158,12 @@ int main(int argc, char *argv[])
 		Cpu.nmi = 1;
 
 	}
-	
+	/*240ライン目から261ライン目の処理*/
 	while (counter < 341 * 22){
-		counter += 3 * Cpu.TestRun();
+		counter += 3 * Cpu.mainRun();
 	}
-/*		std::ofstream ofs("test5.txt", std::ios::out | std::ios::binary);
-	 if (!ofs)
-    {
-        std::cout << "ファイルが開けませんでした。" << std::endl;
-        return 1;
-    }
-	ofs.write(Ppu->ppuPallet, sizeof(char) * 0x20);
-	ofs.close();*/
-	
+
+	/*コントローラの描画*/
 	Controller->Img(renderer);
 
 
@@ -199,46 +174,11 @@ int main(int argc, char *argv[])
 	if (millisec < 16){
     	SDL_Delay(16 - millisec);
 	}
-//	quit_flg = 0;
+
 	}
 	
 	if (renderer) SDL_DestroyRenderer(renderer);
 	if (window) SDL_DestroyWindow(window);
-
-//	SDL_Quit();
-
-
-	
-//	for (int i = 0; i < 0x000; i++){
-//	Ppu->CreateImg();
-//	}
-
-/*	std::ofstream ofs1("test1.txt", std::ios::out | std::ios::binary);
-	 if (!ofs1)
-    {
-        std::cout << "ファイルが開けませんでした。" << std::endl;
-        return 1;
-    }
-	ofs1.write(Ppu->spriteTable, sizeof(char) * 0x100);
-	ofs1.close();
-
-	std::ofstream ofs2("test2.txt", std::ios::out | std::ios::binary);
-	 if (!ofs2)
-    {
-        std::cout << "ファイルが開けませんでした。" << std::endl;
-        return 1;
-    }
-	ofs2.write(Cpu.cpuRam, sizeof(char) * 0x800);
-	ofs2.close();	
-			
-	std::ofstream ofs3("test3.txt", std::ios::out | std::ios::binary);
-	 if (!ofs3)
-    {
-        std::cout << "ファイルが開けませんでした。" << std::endl;
-        return 1;
-    }
-	ofs3.write(Ppu->ppuPallet, sizeof(char) * 0x20);
-	ofs3.close();*/
 			
 			
 	SDL_Quit();
