@@ -26,7 +26,7 @@ public:
 	
 	char* MemoryMap(unsigned short addr);
 	
-	int TestRun();
+	int mainRun();
 
 	/*命令*/
 	void LdO(char *wRegister, char operand);
