@@ -1,5 +1,4 @@
 #include <iostream>
-#include <bitset>
 #include "cpu.h"
 #include "ioport.h"
 #include "common.h"
@@ -49,7 +48,7 @@ void Cpu::StatusRegi(int sflg, bool status){
 	}
 }
 
-//以外、cpuの命令
+//以下、cpuの命令
 
 /*対象の値をレジスタに入力*/
 void Cpu::LdO(char *wRegister, char operand){
@@ -355,7 +354,8 @@ int Cpu::Bxx(int flg, bool status){
 	registerPC += 1;
 	return 0;
 }
-	
+
+/*ソフトウェア割り込み*/
 void Cpu::Brk(unsigned short addr){
 	registerPC += 1;
 	Jsr(addr);
@@ -364,6 +364,7 @@ void Cpu::Brk(unsigned short addr){
 	registerPC = PrgCounter(MemoryMap(addr));
 }
 
+/*スプライトデータ転送*/
 int Cpu::DMA(){
 	unsigned short addr;
 	char *ptr;
@@ -447,6 +448,7 @@ void Cpu::Ind(unsigned short *addr){
 	*addr = addr1 + (C2US(addr2) << 8);
 }
 
+/*メモリマップ*/
 char* Cpu::MemoryMap(unsigned short addr){
 	char *pointer;
 	if (addr < 0x2000){
@@ -457,16 +459,15 @@ char* Cpu::MemoryMap(unsigned short addr){
 		addr &= 0x0007;
 		pointer = &ioPort->ppuIO[addr];
 		ioPort->IOFlg(addr);
-		//std::cout << std::hex << +registerPC <<" " << +registerA << " " << +registerX << " " << +addr << " " << +*pointer << " " << +ioPort->writeAddr << std::endl;
 	}else if (addr < 0x4020){
 		addr -= 0x4000;
 		pointer = &ioPort->padIO[addr];
 		ioPort->PadFlg(addr);
 	}else if (addr < 0x6000){
-		/*ext_rom*/
+		/*ext_rom 未実装*/
 		
 	}else if (addr < 8000){
-		/*ext_ram*/
+		/*ext_ram 未実装*/
 
 	}else{
 		addr -= 0x8000;
@@ -478,6 +479,7 @@ char* Cpu::MemoryMap(unsigned short addr){
 	return pointer;
 }
 
+/*割り込み*/
 void Cpu::Interrupt(){
 	bool flg;
 	if (nmi == true){
@@ -498,6 +500,7 @@ void Cpu::Interrupt(){
 	}
 }
 
+/*インストラクタ*/
 Cpu::Cpu(char *romDate, char header4, IOPort *ioP){
 	nmi = false;
 	rst = true;
@@ -510,40 +513,30 @@ Cpu::Cpu(char *romDate, char header4, IOPort *ioP){
 	
 	Interrupt();
 	
-/*	opeCode = static_cast<enum opeCode>(*MemoryMap(registerPC) & 0xff);
+}
 
-	std::cin>> N;
-	for (int i = 0; i < N; i++){
-		std::cout << "op:0x_" << std::hex << +opeCode << " PC:0x_" << +registerPC << " SP:0x_" << std::bitset<8>(registerP) 
-		<< " a:0x_" <<  +registerA << " x:0x_" << +registerX << " y:0x_" <<+registerY
-		<< " 0x2006:_0x" << +ioPort->ppuIO[0x0006] << " 0x2007:_0x" << +ioPort->ppuIO[0x0007] << std::endl;
-		char test;
-		registerPC +=1;
-		test = Operation();
-		ioPort->IOFunc();
-		opeCode = static_cast<enum opeCode>(*MemoryMap(registerPC) & 0xff);
-	}*/
+/*メインのシーケンス*/
+int Cpu::mainRun(){
 	
-}
-
-int Cpu::TestRun(){
-
+	int counter;
+	
+	/*オペコードを取得*/
 	opeCode = static_cast<enum opeCode>(*MemoryMap(registerPC) & 0x00ff);
-
-
-/*		std::cout << "op:0x_" << std::hex << +opeCode << " PC:0x_" << +registerPC << 
-		" SP:0x_" << std::bitset<8>(registerP) 
-		<< " a:0x_" <<  +registerA << " x:0x_" << +registerX << " y:0x_" <<+registerY
-		<< " 0x2006:_0x" << +ioPort->ppuIO[0x0006] << " 0x2007:_0x" << +ioPort->ppuIO[0x0007] << std::endl;*/
-		int test;
-		registerPC +=1;
-		test = Operation();
-		ioPort->IOFunc();
-		ioPort->PadFunc();
-		test += DMA();
-	return test;
+	registerPC +=1;
+	
+	/*メインの処理実行*/
+	counter = Operation();
+	
+	/*IOポートにアクセスがあった場合の処理*/
+	ioPort->IOFunc();
+	ioPort->PadFunc();
+	counter += DMA();
+	
+	/*処理にかかったクロック数を返す*/
+	return counter;
 }
 
+/*メインの処理*/
 int Cpu::Operation(){
 	int counter = 0;
 	char tempC;
