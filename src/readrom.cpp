@@ -10,9 +10,9 @@
 
 ReadRom::ReadRom(SDL_Renderer *renderer){
 	long int length;
-	char fileName[32] = "";
-FileName(fileName, renderer);
-	std::ifstream ifs(fileName, std::ios::in | std::ios::binary);
+	char filePath[32] = "./rom/";
+FileName(filePath, renderer);
+	std::ifstream ifs(filePath, std::ios::in | std::ios::binary);
 	if (!ifs){
 		std::cout << "ファイルが開けませんでした。" << std::endl;
 
@@ -36,13 +36,14 @@ FileName(fileName, renderer);
 	ifs.close();
 }
 
-void ReadRom::FileName(char *fileName, SDL_Renderer *renderer){
+void ReadRom::FileName(char *filePath, SDL_Renderer *renderer){
 /*	SDL_Window* window;
 	SDL_Renderer* renderer;*/
 	SDL_Texture* texture;
 	SDL_Surface* surface;
 	SDL_Event event;
 	
+	char fileName[32] = "";
 	bool inputFlg = true;
 	int length = 0;
 	
@@ -51,28 +52,6 @@ void ReadRom::FileName(char *fileName, SDL_Renderer *renderer){
 	letter.h = 40;
 
 
-	/* 初期化 */
-/*	if (SDL_Init(SDL_INIT_VIDEO) < 0)
-	{
-    	std::cout << "SDL_Init Erro" << std::endl;
-		return;
-	}*/
-	
-	/* ウィンドウ作成 */
-/*	window = SDL_CreateWindow("File Name", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1080, 1920, SDL_WINDOW_SHOWN);
-	if( window == NULL ) {
-		std::cout << "Can not create window" << std::endl;
-		return;
-    }*/
-    
-    /*レンダラー呼び出し*/
-/*	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-	if (renderer == NULL)
-	{
-		std::cout<< "SDL_CreateRenderer Error" << std::endl;
-		return;
-	}*/
-	
 	if (TTF_Init() == -1){
 		std::cout << "TTF_Init Error" << std::endl;
 		return;
@@ -128,12 +107,9 @@ SDL_StartTextInput();
 	SDL_RenderPresent(renderer);
 	}
 	
-	strcat(fileName, ".nes");
-	
-/*	if (renderer) SDL_DestroyRenderer(renderer);
-	if (window) SDL_DestroyWindow(window);
+	strcat(filePath, fileName);
+	strcat(filePath, ".nes");
 
-	SDL_Quit();*/
 }
 
 	
