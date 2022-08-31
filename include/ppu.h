@@ -4,10 +4,10 @@
 #define PPU_H
 
 struct sprite{
-	int counter = 8;
+	int counter = -1;
 	int x = 0;
 	bool bgFlg;
-	char pattern[8][8] = {};
+	char pattern[16][8] = {};
 };
 
 class IOPort;
@@ -27,7 +27,8 @@ public:
 	void CreateImg(char *ptr);
 	int PrePattern(int x, int y, int name, int line, bool flg);
 	char PreConvColor(int x, int y, int name, int line);
-	void SpriteImg(int x, int y);
+	void SpriteImg8(int x, int y);
+	void SpriteImg16(int x, int y);
 
 	Ppu(char *romDate, char header6, IOPort *ioP);
 //	char Sequence(char counter);
