@@ -21,10 +21,12 @@ int main(int argc, char *argv[])
 {
 	int quit_flg = 2;
 	int x, y;
+	int counter = 0;
 	int touchX;
 	int touchY;
 	int refuse = 0;
 	char padFlg = 0;
+	int bg1, bg2, bg3;
 	SDL_Window* window;
 	SDL_Renderer* renderer;
 	SDL_Event event;
@@ -38,8 +40,10 @@ int main(int argc, char *argv[])
 	bgColor.w = winX * magni;
 	bgColor.h = winY * magni;
 
-
+	int skipFlg = 0;
 	std::chrono::high_resolution_clock::time_point start, end;
+	int timeStep;
+	
 	
 	/* 初期化 */
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -74,7 +78,7 @@ int main(int argc, char *argv[])
 	/* イベントループ */
 	while(quit_flg)
 	{
-		int counter = 0;
+//		counter = 0;
 
 		start = std::chrono::high_resolution_clock::now();
 	    
@@ -110,17 +114,21 @@ int main(int argc, char *argv[])
 	counter -= 341;
 	
 	/*レンダラーで背景描画*/
-	SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, SDL_ALPHA_OPAQUE);
-	SDL_RenderClear(renderer);
+	
 	Ppu->lineCounter = 0;
+	
+	if(skipFlg == 0){
+		SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, SDL_ALPHA_OPAQUE);
+		SDL_RenderClear(renderer);
 
-	int bg1, bg2, bg3;
-	bg1 = static_cast<int>(Ppu->ppuPalette[0]) * 3;
-	bg2 = bg1 + 1;
-	bg3 = bg1 + 2;
-	SDL_SetRenderDrawColor(renderer, color[bg1], color[bg2], color[bg3], SDL_ALPHA_OPAQUE);
+		bg1 = static_cast<int>(Ppu->ppuPalette[0]) * 3;
+		bg2 = bg1 + 1;
+		bg3 = bg1 + 2;
 
-	SDL_RenderFillRect(renderer, &bgColor);
+		SDL_SetRenderDrawColor(renderer, color[bg1], color[bg2], color[bg3], SDL_ALPHA_OPAQUE);
+
+		SDL_RenderFillRect(renderer, &bgColor);
+	}
 	
     imgDot.y = posY;
     
@@ -137,21 +145,23 @@ int main(int argc, char *argv[])
 
 		imgDot.x = posX;
 		
-		for (int j = 0; j < winX; j++){
-			if ((bg[j]& 0b11) !=  0){
-    			bg1 = static_cast<int>(Ppu->ppuPalette[bg[j]]) * 3;
-    			bg2 = bg1 + 1;
-    			bg3 = bg1 + 2;
-    			SDL_SetRenderDrawColor(renderer, color[bg1], color[bg2], color[bg3], SDL_ALPHA_OPAQUE);
+		if (skipFlg == 0){
+			for (int j = 0; j < winX; j++){
+				if ((bg[j]& 0b11) !=  0){
+	    			bg1 = static_cast<int>(Ppu->ppuPalette[bg[j]]) * 3;
+	    			bg2 = bg1 + 1;
+	    			bg3 = bg1 + 2;
+	    			SDL_SetRenderDrawColor(renderer, color[bg1], color[bg2], color[bg3], SDL_ALPHA_OPAQUE);
 
 			/*■をバッファに描画*/
-    			SDL_RenderFillRect(renderer, &imgDot);
+	    			SDL_RenderFillRect(renderer, &imgDot);
 	
 //			SDL_RenderDrawPoint(renderer, j,  i);
+				}
+				imgDot.x += magni;
 			}
-			imgDot.x += magni;
+			imgDot.y += magni;
 		}
-		imgDot.y += magni;
 	}
 	IOP->ppuIO[0x0002] |= 0b10000000;
 	if ((IOP->ppuIO[0x0000] & 0x80) == 0x80){
@@ -168,13 +178,23 @@ int main(int argc, char *argv[])
 
 
 	SDL_RenderPresent(renderer);
-	end = std::chrono::high_resolution_clock::now();
-	auto millisec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << millisec << std::endl;
-	if (millisec < 16){
-    	SDL_Delay(16 - millisec);
-	}
-
+//	if (skipFlg == 0){
+		end = std::chrono::high_resolution_clock::now();
+		auto millisec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		timeStep += static_cast<int>(millisec);
+	std::cout << timeStep << std::endl;
+		if (timeStep <= 16){
+	    	SDL_Delay(16 - timeStep);
+	    	timeStep = 0;
+	    	skipFlg = 0;
+		}else if (timeStep <= 48){
+			timeStep -= 16;
+			skipFlg += 1;
+			skipFlg &= 3;
+		}else{
+			timeStep = 0;
+			skipFlg = 0;
+		}	
 	}
 	
 	if (renderer) SDL_DestroyRenderer(renderer);

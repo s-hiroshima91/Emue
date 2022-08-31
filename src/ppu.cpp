@@ -86,6 +86,7 @@ void Ppu::CreateImg(char *bg){
 	int nameAddr, nameAddrX, nameAddrY;
 	int line1, line2 , currentLine;
 	int x;
+	int spriteSize;
 
 	counter = 0;
 	/*背景のパレット選択*/
@@ -98,6 +99,7 @@ void Ppu::CreateImg(char *bg){
 	currentLine = lineCounter + C2I(scroll[1]);
 	
 	/*Y方向のネームテーブルを選択*/
+/*	while (currentLine >= 240)*/
 	if (currentLine >= 240){
 		nameAddrY ^= 0b100000000000;
 		currentLine -= 240;
@@ -113,12 +115,12 @@ void Ppu::CreateImg(char *bg){
 	//line / 32 *8
 	line2 = ((currentLine >> 2) & 0x38) + 0x03c0;
 	
-/*スプライト0の処理。未実装
+/*スプライト0の処理。未実装*/
 	if (C2I(spriteTable[0]) == lineCounter + 1){
 		ioPort->ppuIO[0x0002] |= 0b01000000;
 	}else{
 		ioPort->ppuIO[0x0002] &= 0b10111111;
-	}*/
+	}
 	
 	/*ネームテーブルの1ビット目を取得*/
 	nameAddrX = (static_cast<int>(ctrRegister1) & 0b01) << 10;
@@ -149,6 +151,14 @@ void Ppu::CreateImg(char *bg){
 	}
 	x += 1;
 	
+//	spriteSize = static_cast<int>(ctrRegister1) & 0b100000;
+	if (CheckBit(ctrRegister1, 5)){
+		spriteSize = 16;
+	}else{
+		spriteSize = 8;
+	}
+	
+	
 	/*2ブロック目以降の処理*/
 	for (i = 0; i < 32; ++i){
 		/*X方向のネームテーブルを選択*/
@@ -167,8 +177,13 @@ void Ppu::CreateImg(char *bg){
 		table1 = rom[addr1];
 		table2 = rom[addr1 + 8];
 		addr2 = PreConvColor(x, line2, nameAddr, currentLine);
-		/*スプライトデータを捜索*/
-		SpriteImg(i, lineCounter);
+		
+		if (spriteSize == 8){
+			/*スプライトデータを捜索*/
+			SpriteImg8(i, lineCounter);
+		}else{
+			SpriteImg16(i, lineCounter);
+		}
 
 		for (j = 0; j < 8; ++j){
 			flg = CheckBit(table1, 7 - j);
@@ -187,7 +202,7 @@ void Ppu::CreateImg(char *bg){
 	
 	/*必要に応じてスプライトデータを上書き*/
 	for (int k =0; k < 8; ++k){
-		if (spriteBuffer[k].counter < 8 ){
+		if (spriteBuffer[k].counter >= 0){
 			if (spriteBuffer[k].bgFlg){
 				for (int l = 0; l < 8; ++l){
 					if ((bg[spriteBuffer[k].x + l] & 0b11) == 0){
@@ -205,14 +220,14 @@ void Ppu::CreateImg(char *bg){
 					}
 				}
 			}
-			++spriteBuffer[k].counter;
+			--spriteBuffer[k].counter;
 		}
 	}
 	lineCounter += 1;
 }
 
 /*スプライトイメージをバッファに生成*/
-void Ppu::SpriteImg(int x, int y){
+void Ppu::SpriteImg8(int x, int y){
 	int flg;
 	int sflg;
 	int addr;
@@ -231,7 +246,7 @@ void Ppu::SpriteImg(int x, int y){
 		if (C2I(spriteTable[x]) == y){
 			
 			/*スプライトのオーバフローを確認*/
-		if (spriteBuffer[bufferNum].counter != 8){
+		if (spriteBuffer[bufferNum].counter != -1){
 			ioPort->ppuIO[0x0002] |= 0b00100000;
 			return;
 		}
@@ -239,11 +254,11 @@ void Ppu::SpriteImg(int x, int y){
 		ioPort->ppuIO[0x0002] &= 0b11011111;
 			
 			/*0ライン目にセット*/
-			spriteBuffer[bufferNum].counter = 0;
+			spriteBuffer[bufferNum].counter = 7;
 			x += 1;
 			
 			/*スプライトパターンのアドレスを取得*/
-			addr = spriteTable[x] << 4;
+			addr = C2I(spriteTable[x]) << 4;
 			addr += sflg;
 			
 			x += 1;
@@ -267,10 +282,10 @@ void Ppu::SpriteImg(int x, int y){
 				hInit = 0;
 				hChange = 1;
 			}else{
-					hInit = 7;
-					hChange = -1;
+				hInit = 7;
+				hChange = -1;
 			}
-			if (vRev){
+			if (!vRev){
 				vPos = addr + 7;
 				vChange = -1;
 			}else{
@@ -303,4 +318,119 @@ void Ppu::SpriteImg(int x, int y){
 		}
 	}
 }
+
+
+/*スプライトイメージをバッファに生成*/
+void Ppu::SpriteImg16(int x, int y){
+	int flg;
+	int sflg;
+	int addr;
+	int hInit, hPos, hChange, vPos, vChange;
+	char table1, table2, temp, colorPalette;
+	bool hRev, vRev;
+	
+	/*スプライトのデープル選択
+	sflg = static_cast<int>(CheckBit(ctrRegister1, 3)) << 12;*/
+	y -= 1;
+	x <<= 3;
+	
+	for (int i = 0; i < 2; ++i){
 		
+		/*ライン上にスプライトが見つかった場合*/
+		if (C2I(spriteTable[x]) == y){
+			
+			/*スプライトのオーバフローを確認*/
+		if (spriteBuffer[bufferNum].counter != -1){
+			ioPort->ppuIO[0x0002] |= 0b00100000;
+			return;
+		}
+
+		ioPort->ppuIO[0x0002] &= 0b11011111;
+			
+			/*0ライン目にセット*/
+			spriteBuffer[bufferNum].counter = 15;
+			x += 1;
+			
+			/*スプライトのデープル選択*/
+			sflg = static_cast<int>(CheckBit(spriteTable[x], 0)) << 12;
+			
+			/*スプライトパターンのアドレスを取得*/			
+			addr = (spriteTable[x] & 0x000000fe) << 4;
+			addr += sflg;
+			
+			x += 1;
+			
+			/*背景優先かどうかを判定*/
+			spriteBuffer[bufferNum].bgFlg = CheckBit(spriteTable[x], 5);
+			/*水平反転かどうかを判定*/
+			hRev = CheckBit(spriteTable[x], 6);
+			/*垂直反転かどうかを判定*/
+			vRev = CheckBit(spriteTable[x], 7);
+			/*カラーパレットの上位2ビットを取得*/
+			colorPalette = ((spriteTable[x] << 2) & 0x0f) | 0x10 ;
+			x += 1;
+			
+			/*スプライトのx座標の位置*/
+			spriteBuffer[bufferNum].x = C2I(spriteTable[x]);
+			x += 1;
+			
+			/*反転の処理*/
+			if (hRev){
+				hInit = 0;
+				hChange = 1;
+			}else{
+				hInit = 7;
+				hChange = -1;
+			}
+			if (vRev){
+				vPos = addr;
+				vChange = 1;
+			}else{
+				vPos = addr + 23;
+				vChange = -1;
+			}
+			
+			/*スプライトデータをバッファに展開*/
+			for (int j = 0; j < 8; ++j){
+				table1 = rom[vPos];
+				table2 = rom[vPos + 8];
+				vPos += vChange;
+				hPos = hInit;
+				for (int k = 0; k < 8; ++k){
+					flg = CheckBit(table1, hPos);
+					temp = flg * 0b01;
+					flg = CheckBit(table2, hPos);
+					temp += flg * 0b10;
+					hPos += hChange;
+					if (temp != 0){
+						temp += colorPalette;
+					}
+					spriteBuffer[bufferNum].pattern[j][k] = temp;
+				}
+			}
+			vPos += (vChange << 3);
+			/*スプライトデータをバッファに展開*/
+			for (int j = 8; j < 16; ++j){
+				table1 = rom[vPos];
+				table2 = rom[vPos + 8];
+				vPos += vChange;
+				hPos = hInit;
+				for (int k = 0; k < 8; ++k){
+					flg = CheckBit(table1, hPos);
+					temp = flg * 0b01;
+					flg = CheckBit(table2, hPos);
+					temp += flg * 0b10;
+					hPos += hChange;
+					if (temp != 0){
+						temp += colorPalette;
+					}
+					spriteBuffer[bufferNum].pattern[j][k] = temp;
+				}
+			}
+			bufferNum += 1;
+			bufferNum &= 0b111;
+		}else{
+			x += 4;
+		}
+	}
+}
