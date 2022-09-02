@@ -24,21 +24,25 @@ int main(int argc, char *argv[])
 	int counter = 0;
 	int touchX;
 	int touchY;
-	int refuse = 0;
+	int temp = 0;
 	char padFlg = 0;
 	int bg1, bg2, bg3;
 	SDL_Window* window;
 	SDL_Renderer* renderer;
+	SDL_Texture* texture;
 	SDL_Event event;
 	
-	SDL_Rect bgColor, imgDot;
-	imgDot.w = magni;
-	imgDot.h = magni;
+	SDL_Rect bgColor, gameWindow;
 
-	bgColor.x = posX;
-	bgColor.y = posY;
-	bgColor.w = winX * magni;
-	bgColor.h = winY * magni;
+	bgColor.x =0;
+	bgColor.y =0;
+	bgColor.w = winX;
+	bgColor.h = winY;
+	
+	gameWindow.x =posX;
+	gameWindow.y =posY;
+	gameWindow.w = winX * magni;
+	gameWindow.h = winY * magni;
 
 	int skipFlg = 0;
 	std::chrono::high_resolution_clock::time_point start, end;
@@ -67,18 +71,29 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	
+	/*レンダラー呼び出し*/
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_TARGET, winX, winY);
+	if (texture == NULL)
+	{
+		std::cout<< "SDL_CreateTexture Error" << std::endl;
+		return 1;
+	}
+	
 	/*各クラスの生成*/
 	ReadRom RR(renderer);
 	IOPort *IOP = new IOPort;
 	Ppu *Ppu = new class Ppu(RR.chrRom, RR.romHeader[6], IOP);
 	Cpu Cpu(RR.prgRom, RR.romHeader[4], IOP);
-	Controller *Controller = new class Controller(posX, posY, winX, winY, magni);
+	Controller *Controller = new class
+	Controller(posX, posY, winX, winY, magni);
 
-
+	SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, SDL_ALPHA_OPAQUE);
+	SDL_RenderClear(renderer);
+	Controller->Img(renderer);
+	
 	/* イベントループ */
 	while(quit_flg)
 	{
-//		counter = 0;
 
 		start = std::chrono::high_resolution_clock::now();
 	    
@@ -90,99 +105,97 @@ int main(int argc, char *argv[])
 			switch (event.type)
 			{
 				case SDL_FINGERDOWN:
-				if (refuse == 0)
-				{
 					touchX = static_cast<int>(event.tfinger.x * x);
 					touchY = static_cast<int>(event.tfinger.y * y);
-				}
 
-				IOP->padTemp |= Controller->InputDown(touchX, touchY, event.tfinger.fingerId);
+					IOP->padTemp |= Controller->InputDown(touchX, touchY, event.tfinger.fingerId);
 
-				break;
+					break;
 				case SDL_FINGERUP:
-				IOP->padTemp &= Controller->InputUp(event.tfinger.fingerId);
-				break;
+					IOP->padTemp &= Controller->InputUp(event.tfinger.fingerId);
+					break;
 				case SDL_QUIT:
-				quit_flg = 0;
-				break;
+					quit_flg = 0;
+					break;
 			}
         }
+
+        SDL_SetRenderTarget(renderer, texture);
+        
         /*-1ライン目の処理*/
         while (counter < 341){
-		counter += 3 * Cpu.mainRun();
-	}
-	counter -= 341;
-	
-	/*レンダラーで背景描画*/
-	
-	Ppu->lineCounter = 0;
-	
-	if(skipFlg == 0){
-		SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, SDL_ALPHA_OPAQUE);
-		SDL_RenderClear(renderer);
-
-		bg1 = static_cast<int>(Ppu->ppuPalette[0]) * 3;
-		bg2 = bg1 + 1;
-		bg3 = bg1 + 2;
-
-		SDL_SetRenderDrawColor(renderer, color[bg1], color[bg2], color[bg3], SDL_ALPHA_OPAQUE);
-
-		SDL_RenderFillRect(renderer, &bgColor);
-	}
-	
-    imgDot.y = posY;
-    
-    /*0ライン目から239ライン目の処理*/
-	for (int i = 0; i < winY; i++){
-		/*1ライン以上のppuの時間が経過するまでcpuを動かす*/
-		while (counter < 341){
-			counter += 3 * Cpu.mainRun();
+        	temp = Cpu.mainRun();
+        	temp += (temp << 1);
+			counter += temp;//3 * Cpu.mainRun();
 		}
 		counter -= 341;
-
-		char bg[winX + 8];
-		Ppu->CreateImg(bg);
-
-		imgDot.x = posX;
-		
-		if (skipFlg == 0){
-			for (int j = 0; j < winX; j++){
-				if ((bg[j]& 0b11) !=  0){
-	    			bg1 = static_cast<int>(Ppu->ppuPalette[bg[j]]) * 3;
-	    			bg2 = bg1 + 1;
-	    			bg3 = bg1 + 2;
-	    			SDL_SetRenderDrawColor(renderer, color[bg1], color[bg2], color[bg3], SDL_ALPHA_OPAQUE);
-
-			/*■をバッファに描画*/
-	    			SDL_RenderFillRect(renderer, &imgDot);
 	
-//			SDL_RenderDrawPoint(renderer, j,  i);
-				}
-				imgDot.x += magni;
-			}
-			imgDot.y += magni;
+		Ppu->lineCounter = 0;
+	
+		if(skipFlg == 0){
+//			SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, SDL_ALPHA_OPAQUE);
+			SDL_RenderClear(renderer);
+
+			bg1 = static_cast<int>(Ppu->ppuPalette[0]) * 3;
+			bg2 = bg1 + 1;
+			bg3 = bg1 + 2;
+
+			SDL_SetRenderDrawColor(renderer, color[bg1], color[bg2], color[bg3], SDL_ALPHA_OPAQUE);
+
+			SDL_RenderFillRect(renderer, &bgColor);
 		}
-	}
-	IOP->ppuIO[0x0002] |= 0b10000000;
-	if ((IOP->ppuIO[0x0000] & 0x80) == 0x80){
-		Cpu.nmi = 1;
+    
+	    /*0ライン目から239ライン目の処理*/
+		for (int i = 0; i < winY; ++i){
+			/*1ライン以上のppuの時間が経過するまでcpuを動かす*/
+			while (counter < 341){
+				temp = Cpu.mainRun();
+  	      	temp += (temp << 1);
+				counter += temp;//3 * Cpu.mainRun();
+			}
+			counter -= 341;
 
-	}
-	/*240ライン目から261ライン目の処理*/
-	while (counter < 341 * 22){
-		counter += 3 * Cpu.mainRun();
-	}
+			char bg[winX + 8];
+			Ppu->CreateImg(bg);
+		
+			if (skipFlg == 0){
+				for (int j = 0; j < winX; ++j){
+					if ((bg[j]& 0b11) !=  0){
+	 	   			bg1 = static_cast<int>(Ppu->ppuPalette[bg[j]]) * 3;
+		    			bg2 = bg1 + 1;
+	 	   			bg3 = bg1 + 2;
+	 	   			SDL_SetRenderDrawColor(renderer, color[bg1], color[bg2], color[bg3], SDL_ALPHA_OPAQUE);
 
-	/*コントローラの描画*/
-	Controller->Img(renderer);
+						/*■をバッファに描画*/	
+								SDL_RenderDrawPoint(renderer, j,  i);
+					}
+				}
+			}
+		}
+		IOP->ppuIO[0x0002] |= 0b10000000;
+		if ((IOP->ppuIO[0x0000] & 0x80) == 0x80){
+			Cpu.nmi = 1;
 
+		}
+		/*240ライン目から261ライン目の処理*/
+		while (counter < 341 * 22){
+			temp = Cpu.mainRun();
+        	temp += (temp << 1);
+			counter += temp;//3 * Cpu.mainRun();
+		}
+		
+		SDL_SetRenderTarget(renderer, NULL);
+		
+		SDL_RenderCopy(renderer, texture, NULL, &gameWindow);
 
-	SDL_RenderPresent(renderer);
-//	if (skipFlg == 0){
+		/*コントローラの描画*/
+
+		SDL_RenderPresent(renderer);
+
 		end = std::chrono::high_resolution_clock::now();
 		auto millisec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 		timeStep += static_cast<int>(millisec);
-	std::cout << timeStep << std::endl;
+		std::cout << timeStep << std::endl;
 		if (timeStep <= 16){
 	    	SDL_Delay(16 - timeStep);
 	    	timeStep = 0;
@@ -194,7 +207,7 @@ int main(int argc, char *argv[])
 		}else{
 			timeStep = 0;
 			skipFlg = 0;
-		}	
+		}
 	}
 	
 	if (renderer) SDL_DestroyRenderer(renderer);
