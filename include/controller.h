@@ -5,7 +5,7 @@
 
 #include "SDL2/SDL.h"
 
-#define btnSize 20
+#define btnSize 30
 
 struct fingerID{
 	bool status = false;
@@ -19,6 +19,8 @@ public:
 	SDL_Rect aBtn, bBtn, selBtn, stBtn, upBtn, downBtn, leftBtn, rightBtn;
 	
 	struct fingerID fingerID[10];
+	
+	int pos[6];
 
 	Controller(int posX, int posY, int winX, int winY, int magni);
 
