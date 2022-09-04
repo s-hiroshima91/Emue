@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 	int touchY;
 	int temp = 0;
 	char padFlg = 0;
+	char rstFlg = 0;
 	int bg1, bg2, bg3;
 	SDL_Window* window;
 	SDL_Renderer* renderer;
@@ -98,7 +99,6 @@ int main(int argc, char *argv[])
 		start = std::chrono::high_resolution_clock::now();
 	    
 	    SDL_GetWindowSize(window, &x, &y);
-	    padFlg = 0;
 
 		while( SDL_PollEvent(&event) )
 		{
@@ -107,9 +107,15 @@ int main(int argc, char *argv[])
 				case SDL_FINGERDOWN:
 					touchX = static_cast<int>(event.tfinger.x * x);
 					touchY = static_cast<int>(event.tfinger.y * y);
-
-					IOP->padTemp |= Controller->InputDown(touchX, touchY, event.tfinger.fingerId);
-
+					padFlg = Controller->InputDown(touchX, touchY, event.tfinger.fingerId);
+					if (padFlg == 0xff){
+						Cpu.rst = true;
+						padFlg = 0;
+					}else if(padFlg == 0xf0){
+						quit_flg = 0;
+					}else{
+						IOP->padTemp |= padFlg;
+					}
 					break;
 				case SDL_FINGERUP:
 					IOP->padTemp &= Controller->InputUp(event.tfinger.fingerId);
@@ -124,16 +130,13 @@ int main(int argc, char *argv[])
         
         /*-1ライン目の処理*/
         while (counter < 341){
-        	temp = Cpu.mainRun();
-        	temp += (temp << 1);
-			counter += temp;//3 * Cpu.mainRun();
+			counter += 3 * Cpu.mainRun();
 		}
 		counter -= 341;
 	
 		Ppu->lineCounter = 0;
 	
 		if(skipFlg == 0){
-//			SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, SDL_ALPHA_OPAQUE);
 			SDL_RenderClear(renderer);
 
 			bg1 = static_cast<int>(Ppu->ppuPalette[0]) * 3;
@@ -149,13 +152,11 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < winY; ++i){
 			/*1ライン以上のppuの時間が経過するまでcpuを動かす*/
 			while (counter < 341){
-				temp = Cpu.mainRun();
-  	      	temp += (temp << 1);
-				counter += temp;//3 * Cpu.mainRun();
+				counter += 3 * Cpu.mainRun();
 			}
 			counter -= 341;
 
-			char bg[winX + 8];
+			char bg[winX + 8] = {};
 			Ppu->CreateImg(bg);
 		
 			if (skipFlg == 0){
@@ -179,9 +180,7 @@ int main(int argc, char *argv[])
 		}
 		/*240ライン目から261ライン目の処理*/
 		while (counter < 341 * 22){
-			temp = Cpu.mainRun();
-        	temp += (temp << 1);
-			counter += temp;//3 * Cpu.mainRun();
+			counter += 3 * Cpu.mainRun();
 		}
 		
 		SDL_SetRenderTarget(renderer, NULL);
