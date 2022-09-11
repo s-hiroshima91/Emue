@@ -18,6 +18,7 @@
 #define nFlg 7
 
 class IOPort;
+class Mapper;
 
 class Cpu{
 public:
@@ -78,12 +79,15 @@ public:
 public:
 	bool nmi, rst, irbr;
 	char cpuRam[0x800];
+	char extRam[0x2000] = {};
 	char romSize;
-	char *rom;
+	char *rom1;
+	char *rom2;
 	char *ppuIO;
 	char *padIO;
 	IOPort *ioPort;
-	Cpu(char *romDate, char header4, IOPort *ioP);
+	Mapper *Mappe;
+	Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Mapp);
 	void Interrupt ();
 	//~Cpu();
 };

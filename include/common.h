@@ -11,4 +11,8 @@ inline bool CheckBit(char operand, int bitN){
 	return static_cast<bool>(operand & 0b00000001); 
 }
 
+inline int C2I(char value){
+	return static_cast<int>(value & 0x000000ff);
+}
+
 #endif

@@ -33,9 +33,9 @@ public:
 	Ppu(char *romDate, char header6, IOPort *ioP);
 //	char Sequence(char counter);
 
-	char ppuTable[0x1000];
-	char ppuPalette[0x020];
-	char spriteTable[0xff] = {};
+	char ppuTable[0x1000] = {};
+	char ppuPalette[0x20] ={};
+	char spriteTable[0x100] = {};
 	char *rom;
 	struct sprite spriteBuffer[8];
 	int bufferNum = 0;

@@ -11,7 +11,7 @@ public:
 
 	ReadRom(SDL_Renderer *renderer);
 	~ReadRom();
-	void FileName(char *filename, SDL_Renderer *renderer);
+	void FileName(char *filePath, SDL_Renderer *renderer);
 };
 
 #endif

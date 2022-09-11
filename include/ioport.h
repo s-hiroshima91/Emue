@@ -17,8 +17,8 @@ char padTemp = 0;
 bool dma;
 
 unsigned short writeAddr;
-char ppuIO[0x0008];
-char padIO[0x0020];
+char ppuIO[0x0008] = {};
+char padIO[0x0020] = {};
 Ppu *ppuClass;
 
 
