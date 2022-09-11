@@ -1,6 +1,7 @@
 #include <iostream>
 #include "cpu.h"
 #include "ioport.h"
+#include "mapper.h"
 #include "common.h"
 
 //ゼロを確認するための関数
@@ -63,14 +64,18 @@ void Cpu::LdO(char *wRegister, char operand){
 /*レジスタの値を対象に入力*/
 void Cpu::StO(unsigned short wAddr, char rRegister){
 		char *ptr;
-		ptr = MemoryMap(wAddr);
-		*ptr = rRegister;
+		if (wAddr < 0x8000){		
+			ptr = MemoryMap(wAddr);
+			*ptr = rRegister;
+		}else{
+			rom1 = Mappe->BankSelect(rom1, rRegister);
+		}
 }
 
 /*対象の値をレジスタAに加算する*/
 void Cpu::Adc(char *wRegister, char operand){
 	unsigned short calc;
-	bool flgA, flgB, cStatu, zStatu,vStatu, nStatu;
+	bool flgA, flgB, cStatu, zStatu ,vStatu, nStatu;
 	/*キャリーオーバを防ぐためshortで計算する*/
 	calc = C2US(*wRegister) + C2US(operand);
 	cStatu = CheckBit(registerP, cFlg);
@@ -464,17 +469,19 @@ char* Cpu::MemoryMap(unsigned short addr){
 		pointer = &ioPort->padIO[addr];
 		ioPort->PadFlg(addr);
 	}else if (addr < 0x6000){
-		/*ext_rom 未実装*/
+		std::cout << "ext_rom 未実装" << std::endl;
 		
-	}else if (addr < 8000){
-		/*ext_ram 未実装*/
+	}else if (addr < 0x8000){
+		addr -= 0x6000;
+		pointer = &extRam[addr];
 
-	}else{
+	}else if (addr < 0xc000){
 		addr -= 0x8000;
-		if (romSize == 1){
-			addr &= 0x3fff;
-		}
-		pointer = &rom[addr];
+		pointer = &rom1[addr];
+		
+	}else {
+		addr -= 0xc000;
+		pointer = &rom2[addr];
 	}
 	return pointer;
 }
@@ -501,12 +508,14 @@ void Cpu::Interrupt(){
 }
 
 /*インストラクタ*/
-Cpu::Cpu(char *romDate, char header4, IOPort *ioP){
+Cpu::Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Mapp){
 	nmi = false;
 	rst = true;
 	irbr = false;
-	rom = romDate;
+	rom1 = romDate;
+	rom2 = romDate + (C2I(header4 - 1) << 14) * sizeof(char);
 	ioPort = ioP;
+	Mappe = Mapp;
 	romSize = header4;
 	registerP = 0b00100000;
 	registerS = 0xfd;

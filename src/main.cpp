@@ -5,6 +5,7 @@
 #include "ioport.h"
 #include "ppu.h"
 #include "controller.h"
+#include "mapper.h"
 
 #include "color.h"
 
@@ -84,7 +85,8 @@ int main(int argc, char *argv[])
 	ReadRom RR(renderer);
 	IOPort *IOP = new IOPort;
 	Ppu *Ppu = new class Ppu(RR.chrRom, RR.romHeader[6], IOP);
-	Cpu Cpu(RR.prgRom, RR.romHeader[4], IOP);
+	Mapper *Mapperr = new class Mapper(RR.romHeader[6], Ppu);
+	Cpu Cpu(RR.prgRom, RR.romHeader[4], IOP, Mapperr);
 	Controller *Controller = new class
 	Controller(posX, posY, winX, winY, magni);
 
@@ -127,7 +129,7 @@ int main(int argc, char *argv[])
         }
 
         SDL_SetRenderTarget(renderer, texture);
-        
+
         /*-1ライン目の処理*/
         while (counter < 341){
 			counter += 3 * Cpu.mainRun();
@@ -135,6 +137,7 @@ int main(int argc, char *argv[])
 		counter -= 341;
 	
 		Ppu->lineCounter = 0;
+		
 	
 		if(skipFlg == 0){
 			SDL_RenderClear(renderer);
@@ -173,6 +176,7 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
+
 		IOP->ppuIO[0x0002] |= 0b10000000;
 		if ((IOP->ppuIO[0x0000] & 0x80) == 0x80){
 			Cpu.nmi = 1;

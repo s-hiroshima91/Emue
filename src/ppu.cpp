@@ -5,9 +5,7 @@
 #include "common.h"
 #include <iostream>
 
-inline int C2I(char value){
-	return static_cast<int>(value & 0x000000ff);
-}
+
 
 /*場所からパレットを紐付ける関数*/
 inline char PaletteNum(char value, int x, int y){
@@ -40,7 +38,6 @@ int Ppu::PrePattern(int x, int y, int name, int line, bool flg){
 /*パレットの値に変換するクラス*/
 char Ppu::PreConvColor(int x, int y, int name, int line){
 	char value;
-	int i;
 	
 	value = ppuTable[y + (x >> 2) + name];
 	value = PaletteNum(value, x, line);
@@ -85,7 +82,7 @@ void Ppu::CreateImg(char *bg){
 	char table1, table2, temp;
 	int nameAddr, nameAddrX, nameAddrY;
 	int line1, line2 , currentLine;
-	int x;
+	int x, y;
 	int spriteSize;
 
 	counter = 0;
@@ -96,11 +93,15 @@ void Ppu::CreateImg(char *bg){
 	nameAddrY = (static_cast<int>(ctrRegister1) & 0b10) << 10;
 	
 	/*Yオフセット*/
-	currentLine = lineCounter + C2I(scroll[1]);
+	y = C2I(scroll[1]);
+	if (y < 240){
+		currentLine = lineCounter + C2I(scroll[1]);
+	}else{
+		currentLine = lineCounter + 240 + 240 - 256 + C2I(scroll[1]);
+	}
 	
 	/*Y方向のネームテーブルを選択*/
-/*	while (currentLine >= 240)*/
-	if (currentLine >= 240){
+	while (currentLine >= 240){
 		nameAddrY ^= 0b100000000000;
 		currentLine -= 240;
 	}
@@ -112,7 +113,7 @@ void Ppu::CreateImg(char *bg){
 	//line / 8 * 32
 	line1 = ((currentLine << 2) & 0xffe0);
 	
-	//line / 32 *8
+	//line / 32 * 8
 	line2 = ((currentLine >> 2) & 0x38) + 0x03c0;
 	
 /*スプライト0の処理。未実装*/
@@ -151,7 +152,7 @@ void Ppu::CreateImg(char *bg){
 	}
 	x += 1;
 	
-//	spriteSize = static_cast<int>(ctrRegister1) & 0b100000;
+
 	if (CheckBit(ctrRegister1, 5)){
 		spriteSize = 16;
 	}else{
@@ -202,7 +203,7 @@ void Ppu::CreateImg(char *bg){
 	
 	/*必要に応じてスプライトデータを上書き*/
 	for (int k =0; k < 8; ++k){
-		if (spriteBuffer[k].counter >= 0){
+		if (spriteBuffer[k].counter < spriteSize){
 			if (spriteBuffer[k].bgFlg){
 				for (int l = 0; l < 8; ++l){
 					if ((bg[spriteBuffer[k].x + l] & 0b11) == 0){
@@ -220,7 +221,7 @@ void Ppu::CreateImg(char *bg){
 					}
 				}
 			}
-			--spriteBuffer[k].counter;
+			++spriteBuffer[k].counter;
 		}
 	}
 	lineCounter += 1;
@@ -246,7 +247,7 @@ void Ppu::SpriteImg8(int x, int y){
 		if (C2I(spriteTable[x]) == y){
 			
 			/*スプライトのオーバフローを確認*/
-		if (spriteBuffer[bufferNum].counter != -1){
+		if (spriteBuffer[bufferNum].counter == 0){
 			ioPort->ppuIO[0x0002] |= 0b00100000;
 			return;
 		}
@@ -254,7 +255,7 @@ void Ppu::SpriteImg8(int x, int y){
 		ioPort->ppuIO[0x0002] &= 0b11011111;
 			
 			/*0ライン目にセット*/
-			spriteBuffer[bufferNum].counter = 7;
+			spriteBuffer[bufferNum].counter = 0;
 			x += 1;
 			
 			/*スプライトパターンのアドレスを取得*/
@@ -285,7 +286,7 @@ void Ppu::SpriteImg8(int x, int y){
 				hInit = 7;
 				hChange = -1;
 			}
-			if (!vRev){
+			if (vRev){
 				vPos = addr + 7;
 				vChange = -1;
 			}else{
@@ -340,7 +341,7 @@ void Ppu::SpriteImg16(int x, int y){
 		if (C2I(spriteTable[x]) == y){
 			
 			/*スプライトのオーバフローを確認*/
-		if (spriteBuffer[bufferNum].counter != -1){
+		if (spriteBuffer[bufferNum].counter == 0){
 			ioPort->ppuIO[0x0002] |= 0b00100000;
 			return;
 		}
@@ -348,7 +349,7 @@ void Ppu::SpriteImg16(int x, int y){
 		ioPort->ppuIO[0x0002] &= 0b11011111;
 			
 			/*0ライン目にセット*/
-			spriteBuffer[bufferNum].counter = 15;
+			spriteBuffer[bufferNum].counter = 0;
 			x += 1;
 			
 			/*スプライトのデープル選択*/
@@ -382,7 +383,7 @@ void Ppu::SpriteImg16(int x, int y){
 				hInit = 7;
 				hChange = -1;
 			}
-			if (vRev){
+			if (!vRev){
 				vPos = addr;
 				vChange = 1;
 			}else{

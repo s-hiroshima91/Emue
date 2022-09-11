@@ -13,24 +13,19 @@ IOPort::IOPort(){
 /*ioポートにアクセスがあったことを管理する関数*/
 void IOPort::IOFlg(unsigned short addr){
 	if (addr == 0x0000){
-		ioFlg = 0;
 		ioFlg = 0x10;
 		
 	}else if (addr == 0x0001){
-		ioFlg = 0;
 		ioFlg = 0x20;
 		
 	}else if (addr == 0x0002){
-		ioFlg = 0;
 		ioFlg = 0x60;
 		
 	}else if (addr == 0x0003){
-		ioFlg = 0;
-		ioFlg += 0x30;
+		ioFlg = 0x30;
 		
 	}else if (addr == 0x0004){
-		ioFlg = 0;
-		ioFlg += 0x40;
+		ioFlg = 0x40;
 		
 	}else if (addr == 0x0005){
 		ioFlg &= 0b0001;
@@ -41,7 +36,6 @@ void IOPort::IOFlg(unsigned short addr){
 		ioFlg += 0b0100;
 		
 	}else if (addr == 0x0007){
-		ioFlg = 0;
 		ioFlg = 0x50;
 		
 	}else{
@@ -53,6 +47,10 @@ void IOPort::IOFlg(unsigned short addr){
 void IOPort::IOFunc(){
 	bool sFlg;
 	char value;
+	if ((ioFlg & 0x80) != 0){
+		return;
+	}
+	
 	if (ioFlg == 0x10){
 		ppuClass->ctrRegister1 = ppuIO[0x0000];
 		ioFlg = 0;
@@ -66,7 +64,7 @@ void IOPort::IOFunc(){
 		
 	}else if (ioFlg == 0x40){
 		ppuClass->spriteTable[ppuIO[0x0003]] = ppuIO[0x0004];
-		ppuClass->ppuIO[0x0003] += 1;
+		ppuIO[0x0003] += 1;
 		ioFlg = 0;	
 		
 	}else if ((ioFlg & 0b00000011) != 0){
