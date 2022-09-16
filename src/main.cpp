@@ -85,8 +85,8 @@ int main(int argc, char *argv[])
 	ReadRom RR(renderer);
 	IOPort *IOP = new IOPort;
 	Ppu *Ppu = new class Ppu(RR.chrRom, RR.romHeader[6], IOP);
-	Mapper *Mapperr = new class Mapper(RR.romHeader[6], Ppu);
-	Cpu Cpu(RR.prgRom, RR.romHeader[4], IOP, Mapperr);
+	Mapper *Map = new class Mapper(RR.romHeader, Ppu);
+	Cpu Cpu(RR.prgRom, RR.romHeader[4], IOP, Map);
 	Controller *Controller = new class
 	Controller(posX, posY, winX, winY, magni);
 

@@ -47,8 +47,13 @@ char Ppu::PreConvColor(int x, int y, int name, int line){
 /*インストラクタ*/
 Ppu::Ppu(char *romDate, char header6, IOPort *ioP){
 	
-	rom = romDate;
+	rom1 = romDate;
+	rom2 = rom1 + 0x0800 * sizeof(char);
+	rom3 = rom2 + 0x0800 * sizeof(char);
+	rom4 = rom3 + 0x0800 * sizeof(char);
+	
 	vMirror = CheckBit(header6, 0);
+	hMirror = !vMirror;
 	ioPort = ioP;
 	ioPort->ppuClass = this;
 	lineCounter = 0x0000;
@@ -58,16 +63,31 @@ Ppu::Ppu(char *romDate, char header6, IOPort *ioP){
 /*メモリマップ*/
 char *Ppu::MemoryMap(unsigned short addr){
 	char *pointer;
-	if (addr < 0x2000){
-		pointer = &rom[addr];
+	if (addr < 0x0800){
+		pointer = &rom1[addr];
+		
+	}else if (addr < 0x1000){
+		addr -= 0x0800;
+		pointer = &rom2[addr];
+		
+	}else if (addr < 0x1800){
+		addr -= 0x1000;
+		pointer = &rom3[addr];
+		
+	}else if (addr < 0x2000){
+		addr -= 0x1800;
+		pointer = &rom4[addr];
+		
 	}else if (addr < 0x3f00){
 		addr -= 0x2000;
 		addr %= 0x1000;
 		pointer = &ppuTable[addr];
+		
 	}else if (addr < 0x4000){
 		addr -= 0x3f00;
 		addr %= 0x0020;
 		pointer = &ppuPalette[addr];
+		
 	}else{
 		std::cout << "ppuerror 0x" << std::hex << addr << std::endl;
 	}
@@ -79,7 +99,7 @@ void Ppu::CreateImg(char *bg){
 	bool bFlg, sFlg, flg;
 	int i, j, counter;
 	int addr1, addr2;
-	char table1, table2, temp;
+	char *table1, *table2, temp;
 	int nameAddr, nameAddrX, nameAddrY;
 	int line1, line2 , currentLine;
 	int x, y;
@@ -107,7 +127,7 @@ void Ppu::CreateImg(char *bg){
 	}
 	/*垂直ミラーの場合の処理*/
 	if (vMirror){
-		nameAddrY = 0;
+		nameAddrY = name;
 	}
 	
 	//line / 8 * 32
@@ -127,21 +147,21 @@ void Ppu::CreateImg(char *bg){
 	nameAddrX = (static_cast<int>(ctrRegister1) & 0b01) << 10;
 	
 	/*ネームテーブルの選択*/
-	nameAddr = nameAddrX + nameAddrY;
+	nameAddr = nameAddrX | nameAddrY;
 	
 	/*中途半端に始まる最初のブロックの処理*/
 	x = C2I(scroll[0]) >> 3;
 	j = C2I(scroll[0]) & 0b0111;
 	
 	addr1 = PrePattern(x, line1, nameAddr, currentLine, bFlg);
-	table1 = rom[addr1];
-	table2 = rom[addr1 + 8];
+	table1 = MemoryMap(addr1);
+	table2 = table1 + 8 * sizeof(char);
 	addr2 = PreConvColor(x, line2, nameAddr, currentLine);
 	
 	while(j < 8){
-		flg = CheckBit(table1, 7 - j);
+		flg = CheckBit(*table1, 7 - j);
 		temp = flg * 0b01;
-		flg = CheckBit(table2, 7 - j);
+		flg = CheckBit(*table2, 7 - j);
 		temp += flg * 0b10;
 		if (temp != 0){
 			temp += addr2;
@@ -168,15 +188,15 @@ void Ppu::CreateImg(char *bg){
 			nameAddrX ^= 0b010000000000;
 		}
 		/*水平ミラーの場合の処理*/
-		if (! vMirror){
-			nameAddrX = 0;
+		if (hMirror){
+			nameAddrX = name;
 		}
 		
-		nameAddr = nameAddrX + nameAddrY;
+		nameAddr = nameAddrX | nameAddrY;
 		
 		addr1 = PrePattern(x, line1, nameAddr, currentLine, bFlg);
-		table1 = rom[addr1];
-		table2 = rom[addr1 + 8];
+		table1 = MemoryMap(addr1);
+		table2 = table1 + 8 * sizeof(char);
 		addr2 = PreConvColor(x, line2, nameAddr, currentLine);
 		
 		if (spriteSize == 8){
@@ -187,9 +207,9 @@ void Ppu::CreateImg(char *bg){
 		}
 
 		for (j = 0; j < 8; ++j){
-			flg = CheckBit(table1, 7 - j);
+			flg = CheckBit(*table1, 7 - j);
 			temp = flg * 0b01;
-			flg = CheckBit(table2, 7 - j);
+			flg = CheckBit(*table2, 7 - j);
 			temp += flg * 0b10;
 			if (temp != 0){
 				temp += addr2;
@@ -233,7 +253,7 @@ void Ppu::SpriteImg8(int x, int y){
 	int sflg;
 	int addr;
 	int hInit, hPos, hChange, vPos, vChange;
-	char table1, table2, temp, colorPalette;
+	char *table1, *table2, temp, colorPalette;
 	bool hRev, vRev;
 	
 	/*スプライトのデープル選択*/
@@ -296,14 +316,14 @@ void Ppu::SpriteImg8(int x, int y){
 			
 			/*スプライトデータをバッファに展開*/
 			for (int j = 0; j < 8; ++j){
-				table1 = rom[vPos];
-				table2 = rom[vPos + 8];
+				table1 = MemoryMap(vPos);
+				table2 = table1 + 8 * sizeof(char);
 				vPos += vChange;
 				hPos = hInit;
 				for (int k = 0; k < 8; ++k){
-					flg = CheckBit(table1, hPos);
+					flg = CheckBit(*table1, hPos);
 					temp = flg * 0b01;
-					flg = CheckBit(table2, hPos);
+					flg = CheckBit(*table2, hPos);
 					temp += flg * 0b10;
 					hPos += hChange;
 					if (temp != 0){
@@ -327,7 +347,7 @@ void Ppu::SpriteImg16(int x, int y){
 	int sflg;
 	int addr;
 	int hInit, hPos, hChange, vPos, vChange;
-	char table1, table2, temp, colorPalette;
+	char *table1, *table2, temp, colorPalette;
 	bool hRev, vRev;
 	
 	/*スプライトのデープル選択
@@ -393,14 +413,14 @@ void Ppu::SpriteImg16(int x, int y){
 			
 			/*スプライトデータをバッファに展開*/
 			for (int j = 0; j < 8; ++j){
-				table1 = rom[vPos];
-				table2 = rom[vPos + 8];
+				table1 = MemoryMap(vPos);
+				table2 = table1 + 8 * sizeof(char);
 				vPos += vChange;
 				hPos = hInit;
 				for (int k = 0; k < 8; ++k){
-					flg = CheckBit(table1, hPos);
+					flg = CheckBit(*table1, hPos);
 					temp = flg * 0b01;
-					flg = CheckBit(table2, hPos);
+					flg = CheckBit(*table2, hPos);
 					temp += flg * 0b10;
 					hPos += hChange;
 					if (temp != 0){
@@ -412,14 +432,14 @@ void Ppu::SpriteImg16(int x, int y){
 			vPos += (vChange << 3);
 			/*スプライトデータをバッファに展開*/
 			for (int j = 8; j < 16; ++j){
-				table1 = rom[vPos];
-				table2 = rom[vPos + 8];
+				table1 = MemoryMap(vPos);
+				table2 = table1 + 8 * sizeof(char);
 				vPos += vChange;
 				hPos = hInit;
 				for (int k = 0; k < 8; ++k){
-					flg = CheckBit(table1, hPos);
+					flg = CheckBit(*table1, hPos);
 					temp = flg * 0b01;
-					flg = CheckBit(table2, hPos);
+					flg = CheckBit(*table2, hPos);
 					temp += flg * 0b10;
 					hPos += hChange;
 					if (temp != 0){

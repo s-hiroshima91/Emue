@@ -37,6 +37,7 @@ void IOPort::IOFlg(unsigned short addr){
 		
 	}else if (addr == 0x0007){
 		ioFlg = 0x50;
+		ppuIO[0x0007] = *ppuClass->MemoryMap(writeAddr);
 		
 	}else{
 		ioFlg = 0;

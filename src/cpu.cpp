@@ -68,7 +68,7 @@ void Cpu::StO(unsigned short wAddr, char rRegister){
 			ptr = MemoryMap(wAddr);
 			*ptr = rRegister;
 		}else{
-			rom1 = Mappe->BankSelect(rom1, rRegister);
+			MP->BankSelect(rRegister, wAddr);
 		}
 }
 
@@ -475,13 +475,21 @@ char* Cpu::MemoryMap(unsigned short addr){
 		addr -= 0x6000;
 		pointer = &extRam[addr];
 
-	}else if (addr < 0xc000){
+	}else if (addr < 0xa000){
 		addr -= 0x8000;
 		pointer = &rom1[addr];
-		
-	}else {
-		addr -= 0xc000;
+			
+	}else if (addr < 0xc000){
+		addr -= 0xa000;
 		pointer = &rom2[addr];
+		
+	}else if (addr < 0xe000){
+		addr -= 0xc000;
+		pointer = &rom3[addr];
+			
+	}else{
+		addr -= 0xe000;
+		pointer = &rom4[addr];
 	}
 	return pointer;
 }
@@ -508,14 +516,17 @@ void Cpu::Interrupt(){
 }
 
 /*インストラクタ*/
-Cpu::Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Mapp){
+Cpu::Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Map){
 	nmi = false;
 	rst = true;
 	irbr = false;
 	rom1 = romDate;
-	rom2 = romDate + (C2I(header4 - 1) << 14) * sizeof(char);
+	rom2 = rom1 + 0x2000 * sizeof(char);
+	rom3 = romDate + (C2I(header4 - 1) << 14) * sizeof(char);
+	rom4 = rom3 + 0x2000 * sizeof(char);
 	ioPort = ioP;
-	Mappe = Mapp;
+	MP = Map;
+	MP->CpuRom(&rom1, &rom2, &rom3, &rom4);
 	romSize = header4;
 	registerP = 0b00100000;
 	registerS = 0xfd;
