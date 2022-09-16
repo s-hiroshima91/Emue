@@ -83,11 +83,13 @@ public:
 	char romSize;
 	char *rom1;
 	char *rom2;
+	char *rom3;
+	char *rom4;
 	char *ppuIO;
 	char *padIO;
 	IOPort *ioPort;
-	Mapper *Mappe;
-	Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Mapp);
+	Mapper *MP;
+	Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Map);
 	void Interrupt ();
 	//~Cpu();
 };

@@ -21,6 +21,8 @@ public:
 	char ctrRegister1;
 	char ctrRegister2;
 	bool vMirror;
+	bool hMirror;
+	int name = 0;
 
 	char scroll[2] = {};
 	int lineCounter = 0;
@@ -36,7 +38,7 @@ public:
 	char ppuTable[0x1000] = {};
 	char ppuPalette[0x20] ={};
 	char spriteTable[0x100] = {};
-	char *rom;
+	char *rom1, *rom2, *rom3, *rom4;
 	struct sprite spriteBuffer[8];
 	int bufferNum = 0;
 
