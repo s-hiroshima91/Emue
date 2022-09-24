@@ -8,15 +8,15 @@
 
 
 /*場所からパレットを紐付ける関数*/
-inline char PaletteNum(char value, int x, int y){
-	int num;
+inline char PaletteNum(char value, unsigned short addr){
+	unsigned short num;
 	/*縦32lineで1単位なので
 	下の二行で32で割って8かける操作*/
-	num = y >> 2;
-	num &= 0b0100;
+	num = addr >> 4;
+	num &= 0x0004;
 	
 	/*横4ブロックの前半か後半を判定*/
-	num += (x & 0b10);
+	num += (addr & 0x0002);
 	/*塊4ブロックのどこかによって8ビットの
 何番目を取り出すか判定する*/
 	value >>= num;
@@ -26,21 +26,27 @@ inline char PaletteNum(char value, int x, int y){
 }
 
 /*場所からパターンテーブルを決定するクラス*/
-int Ppu::PrePattern(int x, int y, int name, int line, bool flg){
-	int addr;
-	addr = C2I((ppuTable[x + y + name]));
-	addr <<= 4;
-	addr |= ((static_cast<int>(flg)) << 12); 	
-	addr += (line & 0x07);
-	return addr;
+unsigned short Ppu::PrePattern(unsigned short vAddr, bool flg){
+	unsigned short value;
+	value = 0x2000 | (vAddr & 0x0fff);
+	value = C2US(*MemoryMap(value));
+	value <<= 4;
+	value |= ((static_cast<unsigned short>(flg)) << 12);
+	value += ((vAddr >> 12) & 0x0007);
+	return value;
 }
 
 /*パレットの値に変換するクラス*/
-char Ppu::PreConvColor(int x, int y, int name, int line){
+char Ppu::PreConvColor(unsigned short vAddr){
+	unsigned short addr;
 	char value;
 	
-	value = ppuTable[y + (x >> 2) + name];
-	value = PaletteNum(value, x, line);
+	addr = 0x23c0 | (vAddr & 0x0c00);
+	addr |= ((vAddr >> 4) & 0x0038);
+	addr |= ((vAddr >> 2) & 0x0007);
+	
+	value = *MemoryMap(addr);
+	value = PaletteNum(value, vAddr);
 	return value;
 }
 
@@ -48,9 +54,13 @@ char Ppu::PreConvColor(int x, int y, int name, int line){
 Ppu::Ppu(char *romDate, char header6, IOPort *ioP){
 	
 	rom1 = romDate;
-	rom2 = rom1 + 0x0800 * sizeof(char);
-	rom3 = rom2 + 0x0800 * sizeof(char);
-	rom4 = rom3 + 0x0800 * sizeof(char);
+	rom2 = rom1 + 0x0400 * sizeof(char);
+	rom3 = rom2 + 0x0400 * sizeof(char);
+	rom4 = rom3 + 0x0400 * sizeof(char);
+	rom5 = rom4 + 0x0400 * sizeof(char);
+	rom6 = rom5 + 0x0400 * sizeof(char);
+	rom7 = rom6 + 0x0400 * sizeof(char);
+	rom8 = rom7 + 0x0400 * sizeof(char);
 	
 	vMirror = CheckBit(header6, 0);
 	hMirror = !vMirror;
@@ -58,30 +68,74 @@ Ppu::Ppu(char *romDate, char header6, IOPort *ioP){
 	ioPort->ppuClass = this;
 	lineCounter = 0x0000;
 	ioPort->ppuIO[0x0002] = 0b10000000;
+	
+	screen.a = &ppuTable[0x0000];
+	if(vMirror){
+		screen.b = &ppuTable[0x0400];
+		screen.c = screen.a;
+	}else{
+		screen.b = screen.a;
+		screen.c = &ppuTable[0x0400];
+	}
+	screen.d = &ppuTable[0x0400];
+	
 }
 
 /*メモリマップ*/
 char *Ppu::MemoryMap(unsigned short addr){
 	char *pointer;
-	if (addr < 0x0800){
+	addr &= 0x3fff;
+	if (addr < 0x0400){
 		pointer = &rom1[addr];
 		
-	}else if (addr < 0x1000){
-		addr -= 0x0800;
+	}else if (addr < 0x0800){
+		addr -= 0x0400;
 		pointer = &rom2[addr];
 		
-	}else if (addr < 0x1800){
-		addr -= 0x1000;
+	}else if (addr < 0x0c00){
+		addr -= 0x0800;
 		pointer = &rom3[addr];
 		
-	}else if (addr < 0x2000){
-		addr -= 0x1800;
+	}else if (addr < 0x1000){
+		addr -= 0x0c00;
 		pointer = &rom4[addr];
+		
+	}else if (addr < 0x1400){
+		addr -= 0x1000;
+		pointer = &rom5[addr];
+		
+	}else if (addr < 0x1800){
+		addr -= 0x1400;
+		pointer = &rom6[addr];
+	
+	}else if (addr < 0x1c00){
+		addr -= 0x1800;
+		pointer = &rom7[addr];
+		
+	}else if (addr < 0x2000){
+		addr -= 0x1c00;
+		pointer = &rom8[addr];
+		
+/*	}else if (addr < 0x3f00){
+		addr -= 0x2000;
+		addr %= 0x1000;
+		pointer = &ppuTable[addr];*/
 		
 	}else if (addr < 0x3f00){
 		addr -= 0x2000;
 		addr %= 0x1000;
-		pointer = &ppuTable[addr];
+		if (addr < 0x0400){
+			pointer = &screen.a[addr];
+		}else if (addr < 0x0800){
+			addr -= 0x0400;
+			pointer = &screen.b[addr];
+		}else if(addr < 0x0c00){
+			addr -= 0x0800;
+			pointer = &screen.c[addr];
+		}else{
+			addr -= 0x0c00;
+			pointer = &screen.d[addr];
+		}
 		
 	}else if (addr < 0x4000){
 		addr -= 0x3f00;
@@ -98,112 +152,77 @@ char *Ppu::MemoryMap(unsigned short addr){
 void Ppu::CreateImg(char *bg){
 	bool bFlg, sFlg, flg;
 	int i, j, counter;
-	int addr1, addr2;
+	unsigned short addr1, addr2;
 	char *table1, *table2, temp;
-	int nameAddr, nameAddrX, nameAddrY;
 	int line1, line2 , currentLine;
-	int x, y;
+	unsigned short fineX;
 	int spriteSize;
+	int spriteZero = 100;
+
+	if((ctrRegister2 & 0x18) == 0){
+		return;
+	}
 
 	counter = 0;
 	/*背景のパレット選択*/
 	bFlg = CheckBit(ctrRegister1, 4);
 	
-	/*ネームテーブルの2ビット目を取得*/
-	nameAddrY = (static_cast<int>(ctrRegister1) & 0b10) << 10;
-	
-	/*Yオフセット*/
-	y = C2I(scroll[1]);
-	if (y < 240){
-		currentLine = lineCounter + C2I(scroll[1]);
-	}else{
-		currentLine = lineCounter + 240 + 240 - 256 + C2I(scroll[1]);
-	}
-	
-	/*Y方向のネームテーブルを選択*/
-	while (currentLine >= 240){
-		nameAddrY ^= 0b100000000000;
-		currentLine -= 240;
-	}
-	/*垂直ミラーの場合の処理*/
-	if (vMirror){
-		nameAddrY = name;
-	}
-	
-	//line / 8 * 32
-	line1 = ((currentLine << 2) & 0xffe0);
-	
-	//line / 32 * 8
-	line2 = ((currentLine >> 2) & 0x38) + 0x03c0;
-	
-/*スプライト0の処理。未実装*/
-	if (C2I(spriteTable[0]) == lineCounter + 1){
-		ioPort->ppuIO[0x0002] |= 0b01000000;
-	}else{
-		ioPort->ppuIO[0x0002] &= 0b10111111;
-	}
-	
-	/*ネームテーブルの1ビット目を取得*/
-	nameAddrX = (static_cast<int>(ctrRegister1) & 0b01) << 10;
-	
-	/*ネームテーブルの選択*/
-	nameAddr = nameAddrX | nameAddrY;
-	
 	/*中途半端に始まる最初のブロックの処理*/
-	x = C2I(scroll[0]) >> 3;
-	j = C2I(scroll[0]) & 0b0111;
+	fineX = addr.x & 0x0007;
 	
-	addr1 = PrePattern(x, line1, nameAddr, currentLine, bFlg);
+	addr1 = PrePattern(addr.v, bFlg);
 	table1 = MemoryMap(addr1);
 	table2 = table1 + 8 * sizeof(char);
-	addr2 = PreConvColor(x, line2, nameAddr, currentLine);
+	addr2 = PreConvColor(addr.v);
 	
-	while(j < 8){
-		flg = CheckBit(*table1, 7 - j);
+	while(fineX < 8){
+		flg = CheckBit(*table1, 7 - fineX);
 		temp = flg * 0b01;
-		flg = CheckBit(*table2, 7 - j);
+		flg = CheckBit(*table2, 7 - fineX);
 		temp += flg * 0b10;
 		if (temp != 0){
 			temp += addr2;
 		}
 		bg[counter] = temp;
 		++counter ;
-		++j;
+		++fineX;
 	}
-	x += 1;
 	
-
 	if (CheckBit(ctrRegister1, 5)){
 		spriteSize = 16;
 	}else{
 		spriteSize = 8;
 	}
 	
+	/*スプライト0の処理*/
+	if (C2I(spriteTable[0]) == lineCounter - 1){
+//					ioPort->ppuIO[0x0002] |= 0b01000000;
+		if ((ctrRegister2 & 0x18) == 0x18){
+			sprite0Pattern = &spriteBuffer[bufferNum].pattern[0][0];
+			sprite0X = &spriteBuffer[bufferNum].x;
+			sprite0Y = spriteSize;
+		}
+	}
 	
 	/*2ブロック目以降の処理*/
 	for (i = 0; i < 32; ++i){
 		/*X方向のネームテーブルを選択*/
-		if(x >= 32){
-			x -= 32;
-			nameAddrX ^= 0b010000000000;
-		}
-		/*水平ミラーの場合の処理*/
-		if (hMirror){
-			nameAddrX = name;
+		if((addr.v & 0x001f) == 0x1f){
+			addr.v ^= 0x041f;
+		}else{
+			++addr.v;
 		}
 		
-		nameAddr = nameAddrX | nameAddrY;
-		
-		addr1 = PrePattern(x, line1, nameAddr, currentLine, bFlg);
+		addr1 = PrePattern(addr.v, bFlg);
 		table1 = MemoryMap(addr1);
 		table2 = table1 + 8 * sizeof(char);
-		addr2 = PreConvColor(x, line2, nameAddr, currentLine);
+		addr2 = PreConvColor(addr.v);
 		
 		if (spriteSize == 8){
 			/*スプライトデータを捜索*/
-			SpriteImg8(i, lineCounter);
+			SpriteImg8(i, lineCounter - 1 );
 		}else{
-			SpriteImg16(i, lineCounter);
+			SpriteImg16(i, lineCounter - 1);
 		}
 
 		for (j = 0; j < 8; ++j){
@@ -216,9 +235,22 @@ void Ppu::CreateImg(char *bg){
 			}
 			bg[counter] = temp;
 
-			++counter ;
+			++counter;
 		}
-		++x;
+	}
+	
+	/*スプライト0の処理*/
+	if (sprite0Y >= 0){
+		bool sZeroFlg = false;
+		for (int k = 0; k < 8; ++k){
+			sZeroFlg |= ((sprite0Pattern[k + ((spriteSize - sprite0Y) << 3)] & 0b11) != 0) & ((bg[*sprite0X + k] & 0b11) != 0);
+		}
+		if (sZeroFlg){
+			ioPort->ppuIO[0x0002] |= 0b01000000;
+			sprite0Y = -1;
+		}else{
+			--sprite0Y;
+		}
 	}
 	
 	/*必要に応じてスプライトデータを上書き*/
@@ -245,6 +277,21 @@ void Ppu::CreateImg(char *bg){
 		}
 	}
 	lineCounter += 1;
+	
+	if((addr.v & 0x7000) != 0x7000){
+		addr.v += 0x1000;
+	}else if((addr.v & 0x73e0) == 0x73a0){
+		addr.v ^= 0x7ba0;
+	}else if((addr.v & 0x73e0) == 0x73e0){
+		addr.v &= 0x0c1f;
+	}else{
+		addr.v += 0x0020;
+		addr.v &= 0x0fff;
+	}
+
+	addr.v &= 0x7be0;
+	addr.v |= (addr.t & 0x041f);
+
 }
 
 /*スプライトイメージをバッファに生成*/

@@ -131,12 +131,25 @@ int main(int argc, char *argv[])
         SDL_SetRenderTarget(renderer, texture);
 
         /*-1ライン目の処理*/
+        IOP->ppuIO[0x0002] &= 0b10111111;
+
+/*if((Ppu->ctrRegister2 & 0x18) != 0){
+        Ppu->addr.v &= 0b0000010000011111;
+        Ppu->addr.v |= (Ppu->addr.t & 0b0111101111100000);
+}*/
         while (counter < 341){
 			counter += 3 * Cpu.mainRun();
 		}
 		counter -= 341;
+		Cpu.irbr = Map->MapperIRQ(Cpu.irbr);
 	
 		Ppu->lineCounter = 0;
+
+		if((Ppu->ctrRegister2 & 0x18) != 0){
+/*	        Ppu->addr.v &= 0b0000010000011111;
+	        Ppu->addr.v |= (Ppu->addr.t & 0b0111101111100000);*/
+	        Ppu->addr.v = Ppu->addr.t;
+}
 		
 	
 		if(skipFlg == 0){
@@ -158,6 +171,7 @@ int main(int argc, char *argv[])
 				counter += 3 * Cpu.mainRun();
 			}
 			counter -= 341;
+			Cpu.irbr = Map->MapperIRQ(Cpu.irbr);
 
 			char bg[winX + 8] = {};
 			Ppu->CreateImg(bg);
@@ -198,7 +212,7 @@ int main(int argc, char *argv[])
 		end = std::chrono::high_resolution_clock::now();
 		auto millisec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 		timeStep += static_cast<int>(millisec);
-		std::cout << timeStep << std::endl;
+//		std::cout << timeStep << std::endl;
 		if (timeStep <= 16){
 	    	SDL_Delay(16 - timeStep);
 	    	timeStep = 0;

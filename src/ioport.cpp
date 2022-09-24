@@ -5,99 +5,86 @@
 #include <iostream>
 
 IOPort::IOPort(){
-	ioFlg = 0;
-	writeAddr = 0;
-	temp = 0;
-}
-
-/*ioポートにアクセスがあったことを管理する関数*/
-void IOPort::IOFlg(unsigned short addr){
-	if (addr == 0x0000){
-		ioFlg = 0x10;
-		
-	}else if (addr == 0x0001){
-		ioFlg = 0x20;
-		
-	}else if (addr == 0x0002){
-		ioFlg = 0x60;
-		
-	}else if (addr == 0x0003){
-		ioFlg = 0x30;
-		
-	}else if (addr == 0x0004){
-		ioFlg = 0x40;
-		
-	}else if (addr == 0x0005){
-		ioFlg &= 0b0001;
-		ioFlg += 0b0001;
-		
-	}else if(addr == 0x0006){
-		ioFlg &= 0b0100;
-		ioFlg += 0b0100;
-		
-	}else if (addr == 0x0007){
-		ioFlg = 0x50;
-		ppuIO[0x0007] = *ppuClass->MemoryMap(writeAddr);
-		
-	}else{
-		ioFlg = 0;
-	}
+	ioFlg = 0xff;
 }
 
 /*ppuレジスタにアクセスしたときの関数*/
-void IOPort::IOFunc(){
-	bool sFlg;
-	char value;
-	if ((ioFlg & 0x80) != 0){
+
+
+void IOPort::IOFunc(int wFlg){
+	unsigned short value;
+	if (ioFlg > 0x0007){
 		return;
 	}
 	
-	if (ioFlg == 0x10){
-		ppuClass->ctrRegister1 = ppuIO[0x0000];
-		ioFlg = 0;
+	if (ioFlg == 0x0007){
+		if (wFlg){
+			*ppuClass->MemoryMap(ppuClass->addr.v) = ppuIO[0x0007];
+		}else{
+			readBuffer = *ppuClass->MemoryMap(ppuClass->addr.v);
+		}
+		ppuIO[0x0007] = readBuffer;
+		if((ppuIO[0x0000] & 0x04) == 0x04){
+			ppuClass->addr.v += 32;
+		}else{
+			ppuClass->addr.v += 1;
+		}
+		ppuClass->addr.v &= 0x7fff;
 		
-	}else if (ioFlg == 0x20){
-		ppuClass->ctrRegister2 = ppuIO[0x0001];
-		ioFlg = 0;
+	}else if (ioFlg == 0x0006){
+		if(ppuClass->addr.w){
+			/*ppuメモリの下位2ビットアドレスに上位2ビットをマージ*/
+			ppuClass->addr.t &= 0x7f00;
+			ppuClass->addr.t |=  C2US(ppuIO[0x0006]);
+			ppuClass->addr.v = ppuClass->addr.t;
+			ppuClass->addr.w = false;
+		}else{
+			/*ppuメモリの上位2ビットアドレス*/
+			ppuClass->addr.t &= 0x00ff;
+			ppuClass->addr.t |= ((static_cast<unsigned short>(ppuIO[0x0006]) & 0x3f) << 8);
+			ppuClass->addr.w = true;
+		}
+//		std::cout << std::hex << ppuClass->addr.w <<" 06 " << +ppuIO[0x0006] << std::endl;
 		
-	}else if (ioFlg == 0x30){
-		ioFlg = 0;
+	}else if (ioFlg == 0x0005){
+		if(ppuClass->addr.w){
+			value = static_cast<unsigned short>(ppuIO[0x0005]);
+			ppuClass->addr.t &= 0x0c1f;
+			ppuClass->addr.t |= ((value << 12) & 0x7000);
+			ppuClass->addr.t |= ((value << 2) & 0x03e0);
+			ppuClass->addr.w = false;
+		}else{
+			ppuClass->addr.t &= 0x7fe0;
+			ppuClass->addr.t |= (static_cast<unsigned short>(ppuIO[0x0005] >> 3) & 0x001f);
+			ppuClass->addr.x = static_cast<unsigned short>(ppuIO[0x0005]) & 0x0007;
+			ppuClass->addr.w = true;
+		}
 		
-	}else if (ioFlg == 0x40){
+//		std::cout << std::hex << ppuClass->addr.w <<" 05 " << +ppuIO[0x0005] << std::endl;
+		
+	}else if (ioFlg == 0x0004){
 		ppuClass->spriteTable[ppuIO[0x0003]] = ppuIO[0x0004];
-		ppuIO[0x0003] += 1;
-		ioFlg = 0;	
+		ppuIO[0x0003] += wFlg;
+		ppuIO[0x0004] = ppuClass->spriteTable[ppuIO[0x0003]];
 		
-	}else if ((ioFlg & 0b00000011) != 0){
-		/*2アクセスするので2ビットで管理*/
-		ppuClass->scroll[ioFlg - 1] = ppuIO[0x0005];
-		ioFlg |= 0x80;
-		
-	}else if (ioFlg == 0b00000100){
-		/*2回アクセスがあるので下と合わせて2ビットで管理*/
-		/*ppuメモリの上位2ビットアドレス*/
-		writeAddr = ppuIO[0x0006];
-		writeAddr <<= 8;
-		ioFlg |= 0x80;
-		
-	}else if (ioFlg == 0b00001000){
-		/*2回アクセスがあるので上と合わせて2ビットで管理*/
-		/*ppuメモリの下位2ビットアドレスに上位2ビットをマージ*/
-		writeAddr |= (ppuIO[0x0006] & 0x00ff);
-		ioFlg |= 0x80;
-		
-	}else if (ioFlg == 0x50){
-		*ppuClass->MemoryMap(writeAddr) = ppuIO[0x0007];
-		sFlg = CheckBit(ppuIO[0x0000], 2);
-		writeAddr += (1 << (sFlg * 5));
-		writeAddr &= 0x3fff;
-		ioFlg = 0;
-		
-	}else if (ioFlg == 0x60){
+/*	}else if (ioFlg == 0x0003){*/
+
+	}else if (ioFlg == 0x0002){
 		ppuIO[0x0002] &= 0x7f;
-		ioFlg = 0;
+		ppuClass->addr.w = false;
+//		std::cout << std::hex << ppuClass->addr.w << " 02 " << +ppuIO[0x0002] << std::endl;
+		
+	}else if (ioFlg == 0x0001){
+		ppuClass->ctrRegister2 = ppuIO[0x0001];
+		
+	}else if (ioFlg == 0x0000){
+		ppuClass->ctrRegister1 = ppuIO[0x0000];
+		ppuClass->addr.t &= 0x73ff;
+		ppuClass->addr.t |= ((static_cast<unsigned short>(ppuIO[0x0000]) << 10) & 0x0c00);
+//		std::cout << std::hex << ppuClass->addr.w << " 00 " << +ppuIO[0x0000] << std::endl;
 	}
-}		
+	ioFlg = 0xff;
+}
 
 /*パッドioにアクセスしたことを判定*/
 void IOPort::PadFlg(unsigned short addr){

@@ -13,10 +13,7 @@ bool CheckZero(char operand){
 	return flg;
 }
 
-//16bitアドレスに変換
-unsigned short C2US(char value){
-	return value & 0x00ff; //マイナスの扱いを明確にするため上8桁をマスク
-}
+
 
 //16bitアドレスに変換、ただし符号を考慮
 unsigned short C2S(char valueC){
@@ -70,6 +67,7 @@ void Cpu::StO(unsigned short wAddr, char rRegister){
 		}else{
 			MP->BankSelect(rRegister, wAddr);
 		}
+		wFlg = true;
 }
 
 /*対象の値をレジスタAに加算する*/
@@ -262,6 +260,7 @@ void Cpu::Inc(unsigned short addr){
 	char *ptr;
 	ptr = MemoryMap(addr);
 	InO(ptr);
+	wFlg = true;
 }
 
 /*対象の値をデクリメント*/
@@ -279,6 +278,7 @@ void Cpu::Dec(unsigned short addr){
 	char *ptr;
 	ptr = MemoryMap(addr);
 	DeO(ptr);
+	wFlg = true;
 }
 
 /*レジスタの値をスタック*/
@@ -463,7 +463,8 @@ char* Cpu::MemoryMap(unsigned short addr){
 		addr -= 0x2000;
 		addr &= 0x0007;
 		pointer = &ioPort->ppuIO[addr];
-		ioPort->IOFlg(addr);
+//		ioPort->IOFlg(addr);
+		ioPort->ioFlg = addr;
 	}else if (addr < 0x4020){
 		addr -= 0x4000;
 		pointer = &ioPort->padIO[addr];
@@ -539,7 +540,6 @@ Cpu::Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Map){
 int Cpu::mainRun(){
 	
 	int counter;
-	
 	/*オペコードを取得*/
 	opeCode = static_cast<enum opeCode>(*MemoryMap(registerPC) & 0x00ff);
 	registerPC +=1;
@@ -548,9 +548,10 @@ int Cpu::mainRun(){
 	counter = Operation();
 	
 	/*IOポートにアクセスがあった場合の処理*/
-	ioPort->IOFunc();
+	ioPort->IOFunc(wFlg);
 	ioPort->PadFunc();
 	counter += DMA();
+	wFlg = false;
 	
 	/*処理にかかったクロック数を返す*/
 	return counter;
