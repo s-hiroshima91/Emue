@@ -9,22 +9,23 @@ class IOPort{
 
 
 public:
-int ioFlg;
+unsigned short ioFlg;
+bool w = false;
 bool padFlg;
-bool temp;
 char padStatus = 0xff;
 char padTemp = 0;
 bool dma;
+bool temp;
 
-unsigned short writeAddr;
 char ppuIO[0x0008] = {};
 char padIO[0x0020] = {};
 Ppu *ppuClass;
+char readBuffer;
 
 
 IOPort();
-void IOFlg(unsigned short addr);
-void IOFunc();
+//void IOFlg(unsigned short addr);
+void IOFunc(int wFlg);
 void PadFlg(unsigned short addr);
 void PadFunc();
 void DMAFunc(char *addr);

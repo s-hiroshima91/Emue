@@ -10,6 +10,20 @@ struct sprite{
 	char pattern[16][8] = {};
 };
 
+struct Addr{
+	unsigned short t = 0;
+	unsigned short v = 0;
+	unsigned short x = 0;
+	bool w = false;
+};
+
+struct Screen{
+	char* a;
+	char* b;
+	char* c;
+	char* d;
+};
+
 class IOPort;
 
 class Ppu{
@@ -24,11 +38,11 @@ public:
 	bool hMirror;
 	int name = 0;
 
-	char scroll[2] = {};
+
 	int lineCounter = 0;
 	void CreateImg(char *ptr);
-	int PrePattern(int x, int y, int name, int line, bool flg);
-	char PreConvColor(int x, int y, int name, int line);
+	unsigned short PrePattern(unsigned short vAddr, bool flg);
+	char PreConvColor(unsigned short vAddr);
 	void SpriteImg8(int x, int y);
 	void SpriteImg16(int x, int y);
 
@@ -38,9 +52,17 @@ public:
 	char ppuTable[0x1000] = {};
 	char ppuPalette[0x20] ={};
 	char spriteTable[0x100] = {};
-	char *rom1, *rom2, *rom3, *rom4;
+	char *rom1, *rom2, *rom3, *rom4, *rom5, *rom6, *rom7, *rom8;
 	struct sprite spriteBuffer[8];
 	int bufferNum = 0;
+	
+	char *sprite0Pattern;
+	int *sprite0X;
+	int sprite0Y = -1;
+	
+	struct Addr addr;
+	
+	struct Screen screen;
 
 	char *ppuIO;
 	char *padIO;

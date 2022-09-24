@@ -76,6 +76,8 @@ public:
 	
 	enum opeCode opeCode;
 	
+	bool wFlg = 0;
+	
 public:
 	bool nmi, rst, irbr;
 	char cpuRam[0x800];
