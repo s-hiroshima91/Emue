@@ -8,8 +8,33 @@ IOPort::IOPort(){
 	ioFlg = 0xff;
 }
 
-/*ppuレジスタにアクセスしたときの関数*/
+/*ppuioにアクセスしたことを判定*/
+void IOPort::IOFlg(unsigned short addr){
+	ioFlg = addr;
+	if (ioFlg == 0x0007){
+		if((ppuClass->addr.v & 0x3fff) >= 0x3f00){
+			readBuffer = *ppuClass->MemoryMap(ppuClass->addr.v & 0x2fff);
+			ppuIO[0x0007] = *ppuClass->MemoryMap(ppuClass->addr.v);
+		}
+		
+/*	}else if (ioFlg == 0x0006){
+		
+	}else if (ioFlg == 0x0005){
+		
+	}else if (ioFlg == 0x0004){
+	
+	}else if (ioFlg == 0x0003){
 
+	}else if (ioFlg == 0x0002){
+		
+	}else if (ioFlg == 0x0001){
+		
+	}else if (ioFlg == 0x0000){*/
+
+	}
+}
+
+/*ppuレジスタにアクセスしたときの関数*/
 
 void IOPort::IOFunc(int wFlg){
 	unsigned short value;
@@ -63,14 +88,21 @@ void IOPort::IOFunc(int wFlg){
 //		std::cout << std::hex << ppuClass->addr.w <<" 05 " << +ppuIO[0x0005] << std::endl;
 		
 	}else if (ioFlg == 0x0004){
-		ppuClass->spriteTable[ppuIO[0x0003]] = ppuIO[0x0004];
-		ppuIO[0x0003] += wFlg;
-		ppuIO[0x0004] = ppuClass->spriteTable[ppuIO[0x0003]];
-		
+		if(wFlg){
+			int USAddr;
+			USAddr = C2US(ppuIO[0x0003]);
+			
+			ppuClass->spriteTable[USAddr] = ppuIO[0x0004];
+			USAddr = (USAddr + 0x01) & 0xff;
+			ppuIO[0x0004] = ppuClass->spriteTable[USAddr];
+			ppuIO[0x0003] = static_cast<char>(USAddr);
+		}
+	
 /*	}else if (ioFlg == 0x0003){*/
 
 	}else if (ioFlg == 0x0002){
-		ppuIO[0x0002] &= 0x7f;
+		readFlg = true;
+//		ppuIO[0x0002] &= 0x7f;
 		ppuClass->addr.w = false;
 //		std::cout << std::hex << ppuClass->addr.w << " 02 " << +ppuIO[0x0002] << std::endl;
 		

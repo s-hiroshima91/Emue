@@ -1,4 +1,5 @@
 #include "readrom.h"
+#include "common.h"
 
 #define KB 1024
 #define headerSize 16
@@ -10,12 +11,14 @@
 
 ReadRom::ReadRom(SDL_Renderer *renderer){
 	long int length;
-	char filePath[32] = "./rom/";
-FileName(filePath, renderer);
-	std::ifstream ifs(filePath, std::ios::in | std::ios::binary);
+	char romPath[32] = "./rom/";
+	
+	FileName(romPath, renderer);
+	
+	std::ifstream ifs(romPath, std::ios::in | std::ios::binary);
 	if (!ifs){
 		std::cout << "ファイルが開けませんでした。" << std::endl;
-
+		return;
 	}
 	romHeader = static_cast<char*>(calloc(headerSize, sizeof(char)));
 	ifs.read(romHeader, headerSize);
@@ -34,9 +37,21 @@ FileName(filePath, renderer);
 		ifs.read(chrRom, length);
 	}
 	ifs.close();
+	
+	extRam = static_cast<char*>(calloc(0x2000, sizeof(char)));
+	if(CheckBit(romHeader[6], 1)){
+		std::ifstream ifs2(savPath, std::ios::in | std::ios::binary);
+		if (!ifs2){
+			std::cout << "セーブデータがありません。" << std::endl;
+			return;
+		}		
+		ifs2.read(extRam, 0x2000 * sizeof(char));
+		ifs2.close();
+	}
+	
 }
 
-void ReadRom::FileName(char *filePath, SDL_Renderer *renderer){
+void ReadRom::FileName(char *romPath, SDL_Renderer *renderer){
 /*	SDL_Window* window;
 	SDL_Renderer* renderer;*/
 	SDL_Texture* texture;
@@ -107,15 +122,34 @@ SDL_StartTextInput();
 	SDL_RenderPresent(renderer);
 	}
 	
-	strcat(filePath, fileName);
-	strcat(filePath, ".nes");
+	strcat(romPath, fileName);
+	strcat(romPath, ".nes");
+	
+	strcat(savPath, fileName);
+	strcat(savPath, ".sav");
 
 }
 
-	
+/*セーブデータを書き出す処理*/
+void ReadRom::SaveDate(int mapper){
+	if(! CheckBit(romHeader[6], 1)){
+		return;
+	}
+	if(mapper == 30){
+		return;
+	}
+	std::ofstream ofs(savPath, std::ios::out | std::ios::binary);
+	if (!ofs){
+		std::cout << "セーブデータを新たに作成します。" << std::endl;
+	}
+	ofs.write(extRam, 0x2000 * sizeof(char));
+	ofs.close();
+}
+
 
 ReadRom::~ReadRom(){
 	free(romHeader);
 	free(prgRom);
 	free(chrRom);
+	free(extRam);
 }

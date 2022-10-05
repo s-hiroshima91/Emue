@@ -220,7 +220,7 @@ void Ppu::CreateImg(char *bg){
 		
 		if (spriteSize == 8){
 			/*スプライトデータを捜索*/
-			SpriteImg8(i, lineCounter - 1 );
+			SpriteImg8(i, lineCounter - 1);
 		}else{
 			SpriteImg16(i, lineCounter - 1);
 		}
@@ -240,7 +240,7 @@ void Ppu::CreateImg(char *bg){
 	}
 	
 	/*スプライト0の処理*/
-	if (sprite0Y >= 0){
+	if (sprite0Y > 0){
 		bool sZeroFlg = false;
 		for (int k = 0; k < 8; ++k){
 			sZeroFlg |= ((sprite0Pattern[k + ((spriteSize - sprite0Y) << 3)] & 0b11) != 0) & ((bg[*sprite0X + k] & 0b11) != 0);
@@ -291,7 +291,7 @@ void Ppu::CreateImg(char *bg){
 
 	addr.v &= 0x7be0;
 	addr.v |= (addr.t & 0x041f);
-
+	ioPort->ppuIO[0x0003] = 0;
 }
 
 /*スプライトイメージをバッファに生成*/

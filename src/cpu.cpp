@@ -463,8 +463,8 @@ char* Cpu::MemoryMap(unsigned short addr){
 		addr -= 0x2000;
 		addr &= 0x0007;
 		pointer = &ioPort->ppuIO[addr];
-//		ioPort->IOFlg(addr);
-		ioPort->ioFlg = addr;
+		ioPort->IOFlg(addr);
+//		ioPort->ioFlg = addr;
 	}else if (addr < 0x4020){
 		addr -= 0x4000;
 		pointer = &ioPort->padIO[addr];
@@ -517,7 +517,7 @@ void Cpu::Interrupt(){
 }
 
 /*インストラクタ*/
-Cpu::Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Map){
+Cpu::Cpu(char *romDate, char *eRamDate, char header4, IOPort *ioP, Mapper *Map){
 	nmi = false;
 	rst = true;
 	irbr = false;
@@ -525,6 +525,7 @@ Cpu::Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Map){
 	rom2 = rom1 + 0x2000 * sizeof(char);
 	rom3 = romDate + (C2I(header4 - 1) << 14) * sizeof(char);
 	rom4 = rom3 + 0x2000 * sizeof(char);
+	extRam = eRamDate;
 	ioPort = ioP;
 	MP = Map;
 	MP->CpuRom(&rom1, &rom2, &rom3, &rom4);

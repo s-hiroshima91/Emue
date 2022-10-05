@@ -29,6 +29,7 @@ int main(int argc, char *argv[])
 	char padFlg = 0;
 	char rstFlg = 0;
 	int bg1, bg2, bg3;
+	char bg[winX + 8] = {};
 	SDL_Window* window;
 	SDL_Renderer* renderer;
 	SDL_Texture* texture;
@@ -86,13 +87,14 @@ int main(int argc, char *argv[])
 	IOPort *IOP = new IOPort;
 	Ppu *Ppu = new class Ppu(RR.chrRom, RR.romHeader[6], IOP);
 	Mapper *Map = new class Mapper(RR.romHeader, Ppu);
-	Cpu Cpu(RR.prgRom, RR.romHeader[4], IOP, Map);
+	Cpu Cpu(RR.prgRom, RR.extRam, RR.romHeader[4], IOP, Map);
 	Controller *Controller = new class
 	Controller(posX, posY, winX, winY, magni);
 
 	SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, SDL_ALPHA_OPAQUE);
 	SDL_RenderClear(renderer);
 	Controller->Img(renderer);
+	
 	
 	/* イベントループ */
 	while(quit_flg)
@@ -130,27 +132,51 @@ int main(int argc, char *argv[])
 
         SDL_SetRenderTarget(renderer, texture);
 
-        /*-1ライン目の処理*/
-        IOP->ppuIO[0x0002] &= 0b10111111;
+        /*Pre Renderingの処理*/
+        if(IOP->readFlg){
+        	IOP->ppuIO[0x0002] &= 0b00011111;
+        	IOP->readFlg = false;
+        }else{
+        	IOP->ppuIO[0x0002] &= 0b00011111;
+        }
 
-/*if((Ppu->ctrRegister2 & 0x18) != 0){
-        Ppu->addr.v &= 0b0000010000011111;
-        Ppu->addr.v |= (Ppu->addr.t & 0b0111101111100000);
-}*/
-        while (counter < 341){
+        while (counter < 258){
 			counter += 3 * Cpu.mainRun();
 		}
-		counter -= 341;
+		counter -= 258;
+		
 		Cpu.irbr = Map->MapperIRQ(Cpu.irbr);
-	
-		Ppu->lineCounter = 0;
+		if((Ppu->ctrRegister2 & 0x18) != 0){
+	        Ppu->addr.v &= 0b0000010000011111;
+	        Ppu->addr.v |= (Ppu->addr.t & 0b0111101111100000);
+		}
+		
+		while(counter < 13){//280 - 258
+			counter += 3 * Cpu.mainRun();
+		}
+		counter -= 13;
 
 		if((Ppu->ctrRegister2 & 0x18) != 0){
-/*	        Ppu->addr.v &= 0b0000010000011111;
-	        Ppu->addr.v |= (Ppu->addr.t & 0b0111101111100000);*/
-	        Ppu->addr.v = Ppu->addr.t;
-}
+	        Ppu->addr.v &= 0b0111101111100000;
+	        Ppu->addr.v |= (Ppu->addr.t & 0b0000010000011111);
+		}
 		
+		while(counter < 24){//304 - 281
+			counter += 3 * Cpu.mainRun();
+		}
+		counter -= 24;
+
+		if((Ppu->ctrRegister2 & 0x18) != 0){
+	        Ppu->addr.v &= 0b0111101111100000;
+	        Ppu->addr.v |= (Ppu->addr.t & 0b0000010000011111);
+		}
+		
+		while(counter < 36){//340 - 305
+			counter += 3 * Cpu.mainRun();
+		}
+		counter -= 36;
+	
+		Ppu->lineCounter = 0;
 	
 		if(skipFlg == 0){
 			SDL_RenderClear(renderer);
@@ -167,13 +193,12 @@ int main(int argc, char *argv[])
 	    /*0ライン目から239ライン目の処理*/
 		for (int i = 0; i < winY; ++i){
 			/*1ライン以上のppuの時間が経過するまでcpuを動かす*/
-			while (counter < 341){
+			while (counter < 258){//257 - 0
 				counter += 3 * Cpu.mainRun();
 			}
-			counter -= 341;
+			counter -= 258;
 			Cpu.irbr = Map->MapperIRQ(Cpu.irbr);
 
-			char bg[winX + 8] = {};
 			Ppu->CreateImg(bg);
 		
 			if (skipFlg == 0){
@@ -185,21 +210,34 @@ int main(int argc, char *argv[])
 	 	   			SDL_SetRenderDrawColor(renderer, color[bg1], color[bg2], color[bg3], SDL_ALPHA_OPAQUE);
 
 						/*■をバッファに描画*/	
-								SDL_RenderDrawPoint(renderer, j,  i);
+						SDL_RenderDrawPoint(renderer, j,  i);
 					}
 				}
 			}
+			
+//			Cpu.irbr = Map->MapperIRQ(Cpu.irbr);
+			while(counter < 83){//340 - 258
+				counter += 3 * Cpu.mainRun();
+			}
+			counter -= 83;
 		}
-
-		IOP->ppuIO[0x0002] |= 0b10000000;
-		if ((IOP->ppuIO[0x0000] & 0x80) == 0x80){
-			Cpu.nmi = 1;
-
-		}
-		/*240ライン目から261ライン目の処理*/
-		while (counter < 341 * 22){
+		
+			/*post rendering*/
+		while(counter < 341){
 			counter += 3 * Cpu.mainRun();
 		}
+		counter -= 341;
+		
+		IOP->ppuIO[0x0002] |= 0b10000000;
+		IOP->readFlg = false;
+		if ((IOP->ppuIO[0x0000] & 0x80) == 0x80){
+			Cpu.nmi = 1;
+		}
+		/*241ライン目から260ライン目の処理*/
+		while (counter < (341 + 340) * 10){
+			counter += 3 * Cpu.mainRun();
+		}
+		counter -= (341 + 340) * 10;
 		
 		SDL_SetRenderTarget(renderer, NULL);
 		
@@ -229,7 +267,9 @@ int main(int argc, char *argv[])
 	
 	if (renderer) SDL_DestroyRenderer(renderer);
 	if (window) SDL_DestroyWindow(window);
-			
+	
+	/*exRamをセーブデータとして書き出す処理*/
+	RR.SaveDate(Map->mapper);
 			
 	SDL_Quit();
 	return 0;
