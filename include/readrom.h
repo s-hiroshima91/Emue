@@ -6,12 +6,14 @@
 
 class ReadRom {
 public:
-	char *romHeader, *prgRom, *chrRom;
+	char *romHeader, *prgRom, *chrRom, *extRam;
+	char savPath[32] = "./save/";
 	
 
 	ReadRom(SDL_Renderer *renderer);
 	~ReadRom();
-	void FileName(char *filePath, SDL_Renderer *renderer);
+	void FileName(char *romPath, SDL_Renderer *renderer);
+	void SaveDate(int mapper);
 };
 
 #endif

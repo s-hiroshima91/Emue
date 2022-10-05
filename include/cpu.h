@@ -81,7 +81,7 @@ public:
 public:
 	bool nmi, rst, irbr;
 	char cpuRam[0x800];
-	char extRam[0x2000] = {};
+	char *extRam;
 	char romSize;
 	char *rom1;
 	char *rom2;
@@ -91,7 +91,7 @@ public:
 	char *padIO;
 	IOPort *ioPort;
 	Mapper *MP;
-	Cpu(char *romDate, char header4, IOPort *ioP, Mapper *Map);
+	Cpu(char *romDate, char *eRamDate, char header4, IOPort *ioP, Mapper *Map);
 	void Interrupt ();
 	//~Cpu();
 };

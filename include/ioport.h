@@ -16,6 +16,7 @@ char padStatus = 0xff;
 char padTemp = 0;
 bool dma;
 bool temp;
+bool readFlg;
 
 char ppuIO[0x0008] = {};
 char padIO[0x0020] = {};
@@ -24,7 +25,7 @@ char readBuffer;
 
 
 IOPort();
-//void IOFlg(unsigned short addr);
+void IOFlg(unsigned short);
 void IOFunc(int wFlg);
 void PadFlg(unsigned short addr);
 void PadFunc();
