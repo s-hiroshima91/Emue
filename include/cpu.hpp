@@ -37,6 +37,7 @@ private:
 	Mapper *mapper;
 	IOPort *ioPort;
 	uint8_t *MemoryMap(uint16_t addr);
+	int RMW(uint16_t addr, void (Cpu::*Instrs)(uint8_t*));
 	int Operation();
 
 	//ステータスレジスタのbit操作
@@ -73,19 +74,19 @@ private:
 	void Ora(uint16_t addr);
 	void Eor(uint16_t addr);
 	void AslA(uint8_t *operand);
-	void Asl(uint16_t addr);
+	int Asl(uint16_t addr);
 	void LsrA(uint8_t *operand);
-	void Lsr(uint16_t addr);
+	int Lsr(uint16_t addr);
 	void RolA(uint8_t *operand);
-	void Rol(uint16_t addr);
+	int Rol(uint16_t addr);
 	void RorA(uint8_t *operand);
-	void Ror(uint16_t addr);
+	int Ror(uint16_t addr);
 	void Bit(uint16_t addr);
 	void CmO(uint8_t rRegister, uint16_t rMemory);
 	void InO(uint8_t *addr);
-	void Inc(uint16_t addr);
+	int Inc(uint16_t addr);
 	void DeO(uint8_t *addr);
-	void Dec(uint16_t addr);
+	int Dec(uint16_t addr);
 	void PhO(uint8_t rRegister);
 	void PlO(uint8_t *wRegister);
 	void Jmp(uint16_t addr);
