@@ -1,1525 +1,1285 @@
-#include "cpu.hpp"
-#include "cpuinline.hpp"
 #include <iostream>
+#include "cpu.hpp"
+#include "ioport.hpp"
+#include "mapper.hpp"
+#include "common.hpp"
 
-int Cpu::OpError(){
-	std::cout << "error " << std::hex << registerPC << std::endl;
+//以下、cpuの命令
+
+int Cpu::LdaIm(){ 
+	LdO(&registerA, registerPC++);
 	return 0;
 }
-
-/*0x00*/
-int Cpu::Nop(){
-	return 0;
-}
-
-int Cpu::LdBCImm(){
-	LdR88Imm(&registerB, &registerC);
-	return 0;
-}
-
-int Cpu::LdbcA(){
-	ushort addr;
-	addr = Byte1to2(registerB, registerC);
-	return StX(addr, registerA);
-}
-
-int Cpu::IncBC(){
-	Inc16(&registerB, &registerC);
-	return 0;
-}
-
-int Cpu::IncB(){
-	Inc(&registerB);
-	return 0;
-}
-
-int Cpu::DecB(){
-	Dec(&registerB);
-	return 0;
-}
-
-int Cpu::LdBImm(){
-	registerB = Imm();
-	return 0;
-}
-
-int Cpu::RlcA(){
-	RlcX(&registerA);
-	return 0;
-}
-
-int Cpu::LdAbsSP(){
-	ushort addr;
-	addr = Abs();
-	StX16(addr, registerSP);
-	return 0;
-}
-
-int Cpu::AddHLBC(){
-	Add16(&registerHL, Byte1to2(registerB, registerC));
-	return 0;
-}
-
-int Cpu::LdAbc(){
-	registerA = *MemoryMap(Byte1to2(registerB, registerC));
-	return 0;
-}
-
-int Cpu::DecBC(){
-	Dec16(&registerB, &registerC);
-	return 0;
-}
-
-int Cpu::IncC(){
-	Inc(&registerC);
-	return 0;
-}
-
-int Cpu::DecC(){
-	Dec(&registerC);
-	return 0;
-}
-
-int Cpu::LdCImm(){
-	registerC = Imm();
-	return 0;
-}
-
-int Cpu::RrcA(){
-	RrcX(&registerA);
-	return 0;
-}
-
-/*0x10*/
-int Cpu::StopCpu(){
-	clockCounter = 0;
-	std::cout << "stop" << std::hex << registerPC << std::endl;
-//	++registerPC;
-	if (!CheckBit(ioReg[0x4d], 0)){
-		return 4;
-	}
 	
-	if (CheckBit(ioReg[0x4d], 7)){
-		doubleSpeed = 0;
-		ioReg[0x4d] = 0x00;
-		return 0;//16200;
+int Cpu::LdaZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	LdO(&registerA, temp);
+	return 0;
+}
 		
-	}else{
-		doubleSpeed = 1;
-		ioReg[0x4d] = 0x80;
-		return 0;//8400;
+int Cpu::LdaZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	LdO(&registerA, temp);
+	return 0;
+}
 		
-	}
-}
-
-int Cpu::LdDEImm(){
-	LdR88Imm(&registerD, &registerE);
+int Cpu::LdaAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	LdO(&registerA, temp);
 	return 0;
 }
-
-int Cpu::LddeA(){
-	ushort addr;
-	addr = Byte1to2(registerD, registerE);
-	return StX(addr, registerA);
-}
-
-int Cpu::IncDE(){
-	Inc16(&registerD, &registerE);
-	return 0;
-}
-
-int Cpu::IncD(){
-	Inc(&registerD);
-	return 0;
-}
-
-int Cpu::DecD(){
-	Dec(&registerD);
-	return 0;
-}
-
-int Cpu::LdDImm(){
-	registerD = Imm();
-	return 0;
-}
-
-int Cpu::RlA(){
-	RlX(&registerA);
-	return 0;
-}
-
-int Cpu::Jr(){
-	ushort value;
-	value = Imm();
-	registerPC += C2S(value);
-	return 0;
-}
-
-int Cpu::AddHLDE(){
-	Add16(&registerHL, Byte1to2(registerD, registerE));
-	return 0;
-}
-
-int Cpu::LdAde(){
-	registerA = *MemoryMap(Byte1to2(registerD, registerE));
-	return 0;
-}
-
-int Cpu::DecDE(){
-	Dec16(&registerD, &registerE);
-	return 0;
-}
-
-int Cpu::IncE(){
-	Inc(&registerE);
-	return 0;
-}
-
-int Cpu::DecE(){
-	Dec(&registerE);
-	return 0;
-}
-
-int Cpu::LdEImm(){
-	registerE = Imm();
-	return 0;
-}
-
-int Cpu::RrA(){
-	RrX(&registerA);
-	return 0;
-}
-
-/*0x20*/
-int Cpu::JrNZ(){
-	return JrBranch(zFlg, false);
-}
-
-int Cpu::LdHLImm(){
-	LdR16Imm(&registerHL);
-	return 0;
-}
-
-int Cpu::LdhliA(){
+		
+int Cpu::LdaAbsX(){
 	int counter;
-	counter = StX(registerHL, registerA);
-	++registerHL;
+	uint16_t temp;
+	counter = AbsO(registerX, &temp);
+	LdO(&registerA, temp);
 	return counter;
 }
 
-int Cpu::IncHL(){
-	++registerHL;
-	return 0;
+int Cpu::LdaAbsY(){
+	int counter;
+	uint16_t temp;
+	counter = AbsO(registerY, &temp);	
+	LdO(&registerA, temp);
+	return counter;
 }
-
-int Cpu::IncH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	Inc(&value);
-	registerHL &= 0x00ff;
-	registerHL |= static_cast<ushort>(value) << 8;
-	return 0;
-}
-
-int Cpu::DecH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	Dec(&value);
-	registerHL &= 0x00ff;
-	registerHL |= static_cast<ushort>(value) << 8;
-	return 0;
-}
-
-int Cpu::LdHImm(){
-	registerHL &= 0x00ff;
-	registerHL |= static_cast<ushort>(Imm()) << 8;
-	return 0;
-}
-
-int Cpu::Daa(){
-	char upper, lower;
-	int flg;
-	
-	flg = static_cast<int>((registerF) >> 4) & 0x03;
-	
-	upper = (registerA >> 4) & 0x0f;
-	lower = registerA & 0x0f;
-	if (CheckBit(registerF, nFlg)){
-		registerA += daaN[flg];
 		
-	}else{
-		if (lower < 0x0a){
-			if (upper < 0x0a){
+int Cpu::LdaXInd(){
+	uint16_t temp;
+	OInd(registerX, &temp);
+	LdO(&registerA, temp);
+	return 0;
+}
+	
+int Cpu::LdaIndY(){
+	int counter;
+	uint16_t temp;
+	counter = IndO(registerY, &temp);
+	LdO(&registerA, temp);
+	return counter;
+}
+		
+int Cpu::LdxIm(){
+	LdO(&registerX, registerPC++);
+	return 0;
+}
+		
+int Cpu::LdxZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	LdO(&registerX, temp);
+	return 0;
+}
+		
+int Cpu::LdxZpgY(){
+	uint16_t temp;
+	ZpgO(registerY, &temp);
+	LdO(&registerX, temp);
+	return 0;
+}
+		
+int Cpu::LdxAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	LdO(&registerX, temp);
+	return 0;
+}
+		
+int Cpu::LdxAbsY(){
+	int counter;
+	uint16_t temp;
+	counter = AbsO(registerY, &temp);
+	LdO(&registerX, temp);
+	return counter;
+}
+
+int Cpu::LdyIm(){ 
+	LdO(&registerY, registerPC++);
+	return 0;
+}
+	
+int Cpu::LdyZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	LdO(&registerY, temp);
+	return 0;
+}
+		
+int Cpu::LdyZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	LdO(&registerY, temp);
+	return 0;
+}	
+		
+int Cpu::LdyAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	LdO(&registerY, temp);
+	return 0;
+}
+		
+int Cpu::LdyAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	LdO(&registerY, temp);
+	return counter;
+}
+
+int Cpu::StaZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	return StO(temp, registerA);
+}
+		
+int Cpu::StaZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	return StO(temp, registerA);
+}
+
+int Cpu::StaAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	return StO(temp, registerA);
+}
+
+int Cpu::StaAbsX(){
+	int counter;
+	uint16_t temp;
+	counter = AbsO(registerX, &temp);
+	 return StO(temp, registerA);
+}
+		
+int Cpu::StaAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	return StO(temp, registerA);
+}
+
+int Cpu::StaXInd(){
+	uint16_t temp;
+	OInd(registerX, &temp);
+	return StO(temp, registerA);
+}
+
+int Cpu::StaIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	return StO(temp, registerA);
+}
+		
+int Cpu::StxZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	return StO(temp, registerX);
+}
+		
+int Cpu::StxZpgY(){
+	uint16_t temp;
+	ZpgO(registerY, &temp);
+	return StO(temp, registerX);
+}
+
+int Cpu::StxAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	return StO(temp, registerX);
+}
+
+int Cpu::StyZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	return StO(temp, registerY);
+}
+		
+int Cpu::StyZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	return StO(temp, registerY);
+}
+
+int Cpu::StyAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	return StO(temp, registerY);
+}
+
+int Cpu::TaxImp(){
+	TrO(&registerX, registerA);
+	return 0;
+}
+
+int Cpu::TayImp(){
+	TrO(&registerY, registerA);
+	return 0;
+}
+		
+int Cpu::TsxImp(){
+	TrO(&registerX, registerS);
+	return 0;
+}
+
+int Cpu::TxaImp(){
+	TrO(&registerA, registerX);
+	return 0;
+}
+		
+int Cpu::TxsImp(){
+	registerS = registerX;
+	return 0;
+}
+		
+int Cpu::TyaImp(){
+	TrO(&registerA, registerY);
+	return 0;
+}
+		
+int Cpu::AdcIm(){
+	Adc(&registerA, registerPC++);
+	return 0;
+}
+
+int Cpu::AdcZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	Adc(&registerA, temp);
+	return 0;
+}
+		
+int Cpu::AdcZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	Adc(&registerA, temp);
+	return 0;
+}
+
+int Cpu::AdcAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	Adc(&registerA, temp);
+	return 0;
+}
+		
+int Cpu::AdcAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	Adc(&registerA, temp);
+	return counter;
+}
+
+int Cpu::AdcAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	Adc(&registerA, temp);
+	return counter;
+}
+		
+int Cpu::AdcXInd(){
+	uint16_t temp;
+	OInd(registerX, &temp);
+	Adc(&registerA, temp);
+	return 0;
+}
+	
+int Cpu::AdcIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	Adc(&registerA, temp);
+	return counter;
+}
+
+int Cpu::SbcIm(){
+	Sbc(&registerA, registerPC++);
+	return 0;
+}
+		
+int Cpu::SbcZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	Sbc(&registerA, temp);
+	return 0;
+}
+		
+int Cpu::SbcZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	Sbc(&registerA, temp);
+	return 0;
+}
+		
+int Cpu::SbcAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	Sbc(&registerA, temp);
+	return 0;
+}
+		
+int Cpu::SbcAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	Sbc(&registerA, temp);
+	return counter;
+}
+
+int Cpu::SbcAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	Sbc(&registerA, temp);
+	return counter;
+}
+		
+int Cpu::SbcXInd(){
+	uint16_t temp;
+	OInd(registerX, &temp);
+	Sbc(&registerA, temp);
+	return 0;
+}
+	
+int Cpu::SbcIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	Sbc(&registerA, temp);
+	return counter;
+}
+		
+int Cpu::IncZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	return Inc(temp);
+}
+		
+int Cpu::IncZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	return Inc(temp);
+}
+
+int Cpu::IncAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	return Inc(temp);
+}
+
+int Cpu::IncAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	return Inc(temp);
+}
+
+int Cpu::InXImp(){
+	InO(&registerX);
+	return 0;
+}
+
+int Cpu::InYImp(){
+	InO(&registerY);
+	return 0;
+}
+
+int Cpu::DecZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	return Dec(temp);
+}
+		
+int Cpu::DecZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	return Dec(temp);
+}
+
+int Cpu::DecAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	return Dec(temp);
+}
+
+int Cpu::DecAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	return Dec(temp);
+}
+
+int Cpu::DeXImp(){
+	DeO(&registerX);
+	return 0;
+}
+
+int Cpu::DeYImp(){
+	DeO(&registerY);
+	return 0;
+}
+
+int Cpu::AndIm(){
+	And(registerPC++);
+	return 0;
+}
+		
+int Cpu::AndZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	And(temp);
+	return 0;
+}
+
+int Cpu::AndZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	And(temp);
+	return 0;
+}
+		
+int Cpu::AndAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	And(temp);
+	return 0;
+}
+		
+int Cpu::AndAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	And(temp);
+	return counter;
+}
+
+int Cpu::AndAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	And(temp);
+	return counter;
+}
+		
+int Cpu::AndXInd(){
+	uint16_t temp;
+	OInd(registerX, &temp);
+	And(temp);
+	return 0;
+}
+	
+int Cpu::AndIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	And(temp);
+	return counter;
+}
+		
+int Cpu::OraIm(){
+	Ora(registerPC++);
+	return 0;
+}
+		
+int Cpu::OraZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	Ora(temp);
+	return 0;
+}
+		
+int Cpu::OraZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	Ora(temp);
+	return 0;
+}
+		
+int Cpu::OraAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	Ora(temp);
+	return 0;
+}
+		
+int Cpu::OraAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	Ora(temp);
+	return counter;
+}
+
+int Cpu::OraAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	Ora(temp);
+	return counter;
+}
+		
+int Cpu::OraXInd(){
+	uint16_t temp;
+	OInd(registerX, &temp);
+	Ora(temp);
+	return 0;
+}
+
+int Cpu::OraIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	Ora(temp);
+	return counter;
+}
+		
+int Cpu::EorIm(){
+	Eor(registerPC++);
+	return 0;
+}
+		
+int Cpu::EorZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	Eor(temp);
+	return 0;
+}
+		
+int Cpu::EorZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	Eor(temp);
+	return 0;
+}
+		
+int Cpu::EorAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	Eor(temp);
+	return 0;
+}
+		
+int Cpu::EorAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	Eor(temp);
+	return counter;
+}
+
+int Cpu::EorAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	Eor(temp);
+	return counter;
+}
+		
+int Cpu::EorXInd(){
+	uint16_t temp;
+	OInd(registerX, &temp);
+	Eor(temp);
+	return 0;
+}
+	
+int Cpu::EorIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	Eor(temp);
+	return 0;
+}
+		
+int Cpu::AslAA(){
+	AslA(&registerA);
+	return 0;
+}
+		
+int Cpu::AslZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	return Asl(temp);
+}
+		
+int Cpu::AslZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	return Asl(temp);
+}
+
+int Cpu::AslAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	return Asl(temp);
+}
+		
+int Cpu::AslAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	return Asl(temp);
+}
+
+int Cpu::LsrAA(){
+	LsrA(&registerA);
+	return 0;
+}
+		
+int Cpu::LsrZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	return Lsr(temp);
+}
+		
+int Cpu::LsrZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	return Lsr(temp);
+}
+		
+int Cpu::LsrAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	return Lsr(temp);
+}
+		
+int Cpu::LsrAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	return Lsr(temp);
+}
+
+int Cpu::RolAA(){
+	RolA(&registerA);
+	return 0;
+}
+		
+int Cpu::RolZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	return Rol(temp);
+}
+		
+int Cpu::RolZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	return Rol(temp);
+}
+		
+int Cpu::RolAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	return Rol(temp);
+}
+		
+int Cpu::RolAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	return Rol(temp);
+}
+
+int Cpu::RorAA(){
+	RorA(&registerA);
+	return 0;
+}
+		
+int Cpu::RorZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	return Ror(temp);
+}
+		
+int Cpu::RorZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	return Ror(temp);
+}
+		
+int Cpu::RorAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	return Ror(temp);
+}
+		
+int Cpu::RorAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	return Ror(temp);
+}
+
+int Cpu::BitZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	Bit(temp);
+	return 0;
+}
 			
-			}else{
-				flg += 8;
-				registerF |= 0x10;
-			}
-		}else{
-			if (upper < 0x09){
-				flg += 4;
-			}else{
-				flg += 12;
-				registerF |= 0x10;
-			}
-		}
-		registerA += daaP[flg];
-	}
-	
-	registerF &= 0x50; //0b0101 0000
-	if (registerA == 0){
-		registerF |= 0x80;
-	}
-
+int Cpu::BitAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	Bit(temp);
 	return 0;
 }
 
-int Cpu::JrZ(){
-	return JrBranch(zFlg, true);
-}
-
-int Cpu::AddHLHL(){
-	Add16(&registerHL, registerHL);
+int Cpu::CmpIm(){
+	CmO(registerA, registerPC++);
 	return 0;
 }
-
-int Cpu::LdAhli(){
-	registerA = *MemoryMap(registerHL);
-	++registerHL;
+		
+int Cpu::CmpZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	CmO(registerA, temp);
 	return 0;
 }
-
-int Cpu::DecHL(){
-	--registerHL;
+		
+int Cpu::CmpZpgX(){
+	uint16_t temp;
+	ZpgO(registerX, &temp);
+	CmO(registerA, temp);
 	return 0;
 }
-
-int Cpu::IncL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	Inc(&value);
-	registerHL &= 0xff00;
-	registerHL |= C2US(value);
+		
+int Cpu::CmpAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	CmO(registerA, temp);
 	return 0;
 }
-
-int Cpu::DecL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	Dec(&value);
-	registerHL &= 0xff00;
-	registerHL |= C2US(value);
-	return 0;
-}
-
-int Cpu::LdLImm(){
-	registerHL &= 0xff00;
-	registerHL |= C2US(Imm());
-	return 0;
-}
-
-int Cpu::Cpl(){
-	registerA ^= 0xff;
-	registerF |= 0x60; //0b0110 0000
-	return 0;
-}
-
-/*0x30*/
-
-int Cpu::JrNC(){
-	return JrBranch(cFlg, false);
-}
-
-int Cpu::LdSPImm(){
-	LdR16Imm(&registerSP);
-	return 0;
-}
-
-int Cpu::LdhldA(){
+		
+int Cpu::CmpAbsX(){
+	uint16_t temp;
 	int counter;
-	counter = StX(registerHL, registerA);
-	--registerHL;
+	counter = AbsO(registerX, &temp);
+	CmO(registerA, temp);
 	return counter;
 }
 
-int Cpu::IncSP(){
-	++registerSP;
-	return 0;
+int Cpu::CmpAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	CmO(registerA, temp);
+	return counter;
 }
-
-int Cpu::Inchl(){
-	char *ptr;
-	ptr = MemoryMap(registerHL);
-	Inc(ptr);
-	return 0;
-}
-
-int Cpu::Dechl(){
-	char *ptr;
-	ptr = MemoryMap(registerHL);
-	Dec(ptr);
-	return 0;
-}
-
-int Cpu::LdhlImm(){
-	char value;
-	value = Imm();
-	return StX(registerHL, value);
-}
-
-int Cpu::Scf(){
-	registerF &= 0x8f; // 0b1000 1111
-	registerF |= 0x10;
-	return 0;
-}
-
-int Cpu::JrC(){
-	return JrBranch(cFlg, true);
-}
-
-int Cpu::AddHLSP(){
-	Add16(&registerHL, registerSP);
-	return 0;
-}
-
-int Cpu::LdAhld(){
-	registerA = *MemoryMap(registerHL);
-	--registerHL;
-	return 0;
-}
-
-int Cpu::DecSP(){
-	--registerSP;
-	return 0;
-}
-
-int Cpu::IncA(){
-	Inc(&registerA);
-	return 0;
-}
-
-int Cpu::DecA(){
-	Dec(&registerA);
-	return 0;
-}
-
-int Cpu::LdAImm(){
-	registerA = Imm();
-	return 0;
-}
-
-int Cpu::Ccf(){
-	registerF &= 0x9f; //0b1001 0000
-	registerF ^= 0x10; //0b0001 0000
-	return 0;
-}
-
-/*0x40*/
-/* int Cpu::LdBB(){
-	return 0;
-	}
-	equiv Nop
-*/
-
-int Cpu::LdBC(){
-	registerB = registerC;
-	return 0;
-}
-
-int Cpu::LdBD(){
-	registerB = registerD;
-	return 0;
-}
-
-int Cpu::LdBE(){
-	registerB = registerE;
-	return 0;
-}
-
-int Cpu::LdBH(){
-	registerB = static_cast<char>(registerHL >> 8);
-	return 0;
-}
-
-int Cpu::LdBL(){
-	registerB = static_cast<char>(registerHL);
-	return 0;
-}
-
-int Cpu::LdBhl(){
-	registerB = *MemoryMap(registerHL);
-	return 0;
-}
-
-int Cpu::LdBA(){
-	registerB = registerA;
-	return 0;
-}
-
-int Cpu::LdCB(){
-	registerC = registerB;
-	return 0;
-}
-
-/*int Cpu::LdCC(){
-	registerC = registerC;
-	return 0;
-}
-equiv Nop
-*/
-
-int Cpu::LdCD(){
-	registerC = registerD;
-	return 0;
-}
-
-int Cpu::LdCE(){
-	registerC = registerE;
-	return 0;
-}
-
-int Cpu::LdCH(){
-	registerC = static_cast<char>(registerHL >> 8);
-	return 0;
-}
-
-int Cpu::LdCL(){
-	registerC = static_cast<char>(registerHL);
-	return 0;
-}
-
-int Cpu::LdChl(){
-	registerC = *MemoryMap(registerHL);
-	return 0;
-}
-
-int Cpu::LdCA(){
-	registerC = registerA;
-	return 0;
-}
-
-/*0x50*/
-int Cpu::LdDB(){
-	registerD = registerB;
-	return 0;
-}
-
-int Cpu::LdDC(){
-	registerD = registerC;
-	return 0;
-}
-
-/*int Cpu::LdDD(){
-	registerD = registerD;
-	return 0;
-}
-equiv Nop
-*/
-
-int Cpu::LdDE(){
-	registerD = registerE;
-	return 0;
-}
-
-int Cpu::LdDH(){
-	registerD = static_cast<char>(registerHL >> 8);
-	return 0;
-}
-
-int Cpu::LdDL(){
-	registerD = static_cast<char>(registerHL);
-	return 0;
-}
-
-int Cpu::LdDhl(){
-	registerD = *MemoryMap(registerHL);
-	return 0;
-}
-
-int Cpu::LdDA(){
-	registerD = registerA;
-	return 0;
-}
-
-int Cpu::LdEB(){
-	registerE = registerB;
-	return 0;
-}
-
-int Cpu::LdEC(){
-	registerE = registerC;
-	return 0;
-}
-
-int Cpu::LdED(){
-	registerE = registerD;
-	return 0;
-}
-
-/*int Cpu::LdEE(){
-	registerC = registerE;
-	return 0;
-}
-equiv Nop
-*/
-
-int Cpu::LdEH(){
-	registerE = static_cast<char>(registerHL >> 8);
-	return 0;
-}
-
-int Cpu::LdEL(){
-	registerE = static_cast<char>(registerHL);
-	return 0;
-}
-
-int Cpu::LdEhl(){
-	registerE = *MemoryMap(registerHL);
-	return 0;
-}
-
-int Cpu::LdEA(){
-	registerE = registerA;
-	return 0;
-}
-
-/*0x60*/
-int Cpu::LdHB(){
-	LdUpperR8(&registerHL, registerB);
-	return 0;
-}
-
-int Cpu::LdHC(){
-	LdUpperR8(&registerHL, registerC);
-	return 0;
-}
-
-int Cpu::LdHD(){
-	LdUpperR8(&registerHL, registerD);
-	return 0;
-}
-
-int Cpu::LdHE(){
-	LdUpperR8(&registerHL, registerE);
-	return 0;
-}
-
-/*
-int Cpu::LdHH(){
-	registerHL = registerHL;
-	return 0;
-}
-equiv Nop*/
-
-int Cpu::LdHL(){
-	registerHL &= 0x00ff;
-	registerHL |= (registerHL << 8);
-	return 0;
-}
-
-int Cpu::LdHhl(){
-	LdUpperR8(&registerHL, *MemoryMap(registerHL));
-	return 0;
-}
-
-int Cpu::LdHA(){
-	LdUpperR8(&registerHL, registerA);
-	return 0;
-}
-
-int Cpu::LdLB(){
-	LdLowerR8(&registerHL, registerB);
-	return 0;
-}
-
-int Cpu::LdLC(){
-	LdLowerR8(&registerHL, registerC);
-	return 0;
-}
-
-int Cpu::LdLD(){
-	LdLowerR8(&registerHL, registerD);
-	return 0;
-}
-
-int Cpu::LdLE(){
-	LdLowerR8(&registerHL, registerE);
-	return 0;
-}
-
-int Cpu::LdLH(){
-	registerHL &= 0xff00;
-	registerHL |= 0x00ff & (registerHL >> 8);
-	return 0;
-}
-
-/*
-int Cpu::LdLL(){
-	registerHL = registerHL;
-	return 0;
-}
-equiv Nop
-*/
-
-int Cpu::LdLhl(){
-	LdLowerR8(&registerHL, *MemoryMap(registerHL));
-	return 0;
-}
-
-int Cpu::LdLA(){
-	LdLowerR8(&registerHL, registerA);
-	return 0;
-}
-
-/*0x70*/
-int Cpu::LdhlB(){
-	return StX(registerHL, registerB);
-}
-
-int Cpu::LdhlC(){
-	return StX(registerHL, registerC);
-}
-
-int Cpu::LdhlD(){
-	return StX(registerHL, registerD);
-}
-
-int Cpu::LdhlE(){
-	return StX(registerHL, registerE);
-}
-
-int Cpu::LdhlH(){
-	return StX(registerHL, static_cast<char>(registerHL >> 8));
-}
-
-int Cpu::LdhlL(){
-	return StX(registerHL, static_cast<char>(registerHL));
-}
-
-int Cpu::Halt(){
-	int counter = 0;
-	if (ime){
-		--registerPC;
-		halt = true;
 		
-	}else{
-		if (((IE & IF) & 0x1f) != 0){
-			ushort opeCode;
-			if (!halt){
-				opeCode = C2US(Imm());
-				--registerPC;
-				counter = (this->*cpuInstrs[opeCode])();
-				counter += cpuCycle[opeCode];
-			}
-			halt = false;
-
-		}else{
-			--registerPC;
-			halt = true;
-
-		}
-	}
-	return counter;
-}
-
-int Cpu::LdhlA(){
-	return StX(registerHL, registerA);
-}
-
-int Cpu::LdAB(){
-	registerA = registerB;
-	return 0;
-}
-
-int Cpu::LdAC(){
-	registerA = registerC;
-	return 0;
-}
-
-int Cpu::LdAD(){
-	registerA = registerD;
-	return 0;
-}
-
-int Cpu::LdAE(){
-	registerA = registerE;
-	return 0;
-}
-
-int Cpu::LdAH(){
-	registerA = static_cast<char>(registerHL >> 8);
-	return 0;
-}
-
-int Cpu::LdAL(){
-	registerA = static_cast<char>(registerHL);
-	return 0;
-}
-
-int Cpu::LdAhl(){
-	registerA = *MemoryMap(registerHL);
-	return 0;
-}
-
-/*
-int Cpu::LdAA(){
-	registerA = registerA;
-	return 0;
-}
-equiv Nop
-*/
-
-/*0x80*/
-int Cpu::AddB(){
-	Add(registerB);
-	return 0;
-}
-
-int Cpu::AddC(){
-	Add(registerC);
-	return 0;
-}
-
-int Cpu::AddD(){
-	Add(registerD);
-	return 0;
-}
-
-int Cpu::AddE(){
-	Add(registerE);
-	return 0;
-}
-
-int Cpu::AddH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	Add(value);
-	return 0;
-}
-
-int Cpu::AddL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	Add(value);
-	return 0;
-}
-
-int Cpu::Addhl(){
-	char value;
-	value = *MemoryMap(registerHL);
-	Add(value);
-	return 0;
-}
-
-int Cpu::AddA(){
-	Add(registerA);
-	return 0;
-}
-
-int Cpu::AdcB(){
-	Adc(registerB);
-	return 0;
-}
-
-int Cpu::AdcC(){
-	Adc(registerC);
-	return 0;
-}
-
-int Cpu::AdcD(){
-	Adc(registerD);
-	return 0;
-}
-
-int Cpu::AdcE(){
-	Adc(registerE);
-	return 0;
-}
-
-int Cpu::AdcH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	Adc(value);
-	return 0;
-}
-
-int Cpu::AdcL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	Adc(value);
-	return 0;
-}
-
-int Cpu::Adchl(){
-	char value;
-	value = *MemoryMap(registerHL);
-	Adc(value);
-	return 0;
-}
-
-int Cpu::AdcA(){
-	Adc(registerA);
-	return 0;
-}
-
-/*0x90*/
-int Cpu::SubB(){
-	Sub(registerB);
-	return 0;
-}
-
-int Cpu::SubC(){
-	Sub(registerC);
-	return 0;
-}
-
-int Cpu::SubD(){
-	Sub(registerD);
-	return 0;
-}
-
-int Cpu::SubE(){
-	Sub(registerE);
-	return 0;
-}
-
-int Cpu::SubH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	Sub(value);
-	return 0;
-}
-
-int Cpu::SubL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	Sub(value);
-	return 0;
-}
-
-int Cpu::Subhl(){
-	char value;
-	value = *MemoryMap(registerHL);
-	Sub(value);
-	return 0;
-}
-
-int Cpu::SubA(){
-	Sub(registerA);
-	return 0;
-}
-
-int Cpu::SbcB(){
-	Sbc(registerB);
-	return 0;
-}
-
-int Cpu::SbcC(){
-	Sbc(registerC);
-	return 0;
-}
-
-int Cpu::SbcD(){
-	Sbc(registerD);
-	return 0;
-}
-
-int Cpu::SbcE(){
-	Sbc(registerE);
-	return 0;
-}
-
-int Cpu::SbcH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	Sbc(value);
-	return 0;
-}
-
-int Cpu::SbcL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	Sbc(value);
-	return 0;
-}
-
-int Cpu::Sbchl(){
-	char value;
-	value = *MemoryMap(registerHL);
-	Sbc(value);
-	return 0;
-}
-
-int Cpu::SbcA(){
-	Sbc(registerA);
+int Cpu::CmpXInd(){
+	uint16_t temp;
+	OInd(registerX, &temp);
+	CmO(registerA, temp);
 	return 0;
-}
-
-/*0xa0*/
-int Cpu::AndB(){
-	And(registerB);
-	return 0;
-}
-
-int Cpu::AndC(){
-	And(registerC);
-	return 0;
-}
-
-int Cpu::AndD(){
-	And(registerD);
-	return 0;
-}
-
-int Cpu::AndE(){
-	And(registerE);
-	return 0;
-}
-
-int Cpu::AndH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	And(value);
-	return 0;
-}
-
-int Cpu::AndL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	And(value);
-	return 0;
-}
-
-int Cpu::Andhl(){
-	char value;
-	value = *MemoryMap(registerHL);
-	And(value);
-	return 0;
-}
-
-int Cpu::AndA(){
-	And(registerA);
-	return 0;
-}
-int Cpu::XorB(){
-	Xor(registerB);
-	return 0;
-}
-
-int Cpu::XorC(){
-	Xor(registerC);
-	return 0;
-}
-
-int Cpu::XorD(){
-	Xor(registerD);
-	return 0;
-}
-
-int Cpu::XorE(){
-	Xor(registerE);
-	return 0;
-}
-
-int Cpu::XorH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	Xor(value);
-	return 0;
-}
-
-int Cpu::XorL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	Xor(value);
-	return 0;
-}
-
-int Cpu::Xorhl(){
-	char value;
-	value = *MemoryMap(registerHL);
-	Xor(value);
-	return 0;
-}
-
-int Cpu::XorA(){
-	Xor(registerA);
-	return 0;
-}
-
-/*0xb0*/
-int Cpu::OrB(){
-	Or(registerB);
-	return 0;
-}
-
-int Cpu::OrC(){
-	Or(registerC);
-	return 0;
-}
-
-int Cpu::OrD(){
-	Or(registerD);
-	return 0;
-}
-
-int Cpu::OrE(){
-	Or(registerE);
-	return 0;
-}
-
-int Cpu::OrH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	Or(value);
-	return 0;
-}
-
-int Cpu::OrL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	Or(value);
-	return 0;
-}
-
-int Cpu::Orhl(){
-	char value;
-	value = *MemoryMap(registerHL);
-	Or(value);
-	return 0;
-}
-
-int Cpu::OrA(){
-	Or(registerA);
-	return 0;
-}
-
-int Cpu::CpB(){
-	Cp(registerB);
-	return 0;
-}
-
-int Cpu::CpC(){
-	Cp(registerC);
-	return 0;
-}
-
-int Cpu::CpD(){
-	Cp(registerD);
-	return 0;
-}
-
-int Cpu::CpE(){
-	Cp(registerE);
-	return 0;
-}
-
-int Cpu::CpH(){
-	char value;
-	value = static_cast<char>(registerHL >> 8);
-	Cp(value);
-	return 0;
-}
-
-int Cpu::CpL(){
-	char value;
-	value = static_cast<char>(registerHL);
-	Cp(value);
-	return 0;
-}
-
-int Cpu::Cphl(){
-	char value;
-	value = *MemoryMap(registerHL);
-	Cp(value);
-	return 0;
-}
-
-int Cpu::CpA(){
-	Cp(registerA);
-	return 0;
-}
-
-/*0xc0*/
-int Cpu::RetNZ(){
-	return RetBranch(zFlg, false);
-}
-
-int Cpu::PopBC(){
-	Pop88(&registerB, &registerC);
-	return 0;
-}
-
-int Cpu::JpNZ(){
-	return JpBranch(zFlg, false);
-}
-
-int Cpu::Jp(){
-	LdR16Imm(&registerPC);
-	return 0;
-}
-
-int Cpu::CallNZ(){
-	return CallBranch(zFlg, false);
-}
-
-int Cpu::PushBC(){
-	Push88(registerB, registerC);
-	return 0;
-}
-
-int Cpu::AddImm(){
-	Add(Imm());
-	return 0;
-}
-
-int Cpu::Rst00(){
-	Push16(registerPC);
-	registerPC = 0x0000;
-	return 0;
-}
-
-int Cpu::RetZ(){
-	return RetBranch(zFlg, true);
-}
-
-int Cpu::Ret(){
-	char upper, lower;
-	Pop88(&upper, &lower);
-	registerPC = Byte1to2(upper, lower);
-	return 0;
-}
-
-int Cpu::JpZ(){
-	return JpBranch(zFlg, true);
 }
-
-int Cpu::Prefix(){
-	ushort opeCode, lower, middle, upper;
-	opeCode = C2US(Imm());
-	lower = opeCode & 0x07;
-	middle = (opeCode >> 3) & 0x07;
-	upper = opeCode >> 6;
 	
-	if ((lower & 0x04) == 0) {
-		(this->*cbCpuInstrs[upper])(middle, operand[lower]);
-	}else if (lower == 0x04){
-		char value;
-		value = static_cast<char>(registerHL >> 8);
-		(this->*cbCpuInstrs[upper])(middle, &value);
-		registerHL &= 0x00ff;
-		registerHL |= static_cast<ushort>(value) << 8;
-	}else if (lower == 0x05){
-		char value;
-		value = static_cast<char>(registerHL);
-		(this->*cbCpuInstrs[upper])(middle, &value);
-		registerHL &= 0xff00;
-		registerHL |= C2US(value);
-	}else if (lower == 0x06){
-		char *ptr;
-		ptr = MemoryMap(registerHL);
-		(this->*cbCpuInstrs[upper])(middle, ptr);
-	}else{
-		(this->*cbCpuInstrs[upper])(middle, &registerA);
-	}
-	return cbCpuCycle[(upper << 3) | lower];
+int Cpu::CmpIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	CmO(registerA, temp);
+	return counter;
 }
 
-int Cpu::CallZ(){
-	return CallBranch(zFlg, true);
-}
-
-int Cpu::Call(){
-	ushort addr;
-	addr = Abs();
-	Push16(registerPC);
-	registerPC = addr;
+int Cpu::CpXIm(){
+	CmO(registerX, registerPC++);
 	return 0;
-}
-
-int Cpu::AdcImm(){
-	Adc(Imm());
-	return 0;
-}
-
-int Cpu::Rst08(){
-	Push16(registerPC);
-	registerPC = 0x0008;
-	return 0;
-}
-
-/*0xd0*/
-int Cpu::RetNC(){
-	return RetBranch(cFlg, false);
-}
-
-int Cpu::PopDE(){
-	Pop88(&registerD, &registerE);
-	return 0;
-}
-
-int Cpu::JpNC(){
-	return JpBranch(cFlg, false);
-}
-
-/*
-0xd3
-No OpeCode
-
-*/
-
-int Cpu::CallNC(){
-	return CallBranch(cFlg, false);
-}
-
-int Cpu::PushDE(){
-	Push88(registerD, registerE);
-	return 0;
-}
-
-int Cpu::SubImm(){
-	Sub(Imm());
-	return 0;
-}
-
-int Cpu::Rst10(){
-	Push16(registerPC);
-	registerPC = 0x0010;
-	return 0;
-}
-
-int Cpu::RetC(){
-	return RetBranch(cFlg, true);
-}
-
-int Cpu::RetI(){
-	char upper, lower;
-	Pop88(&upper, &lower);
-	registerPC = Byte1to2(upper, lower);
-	Ei();
-	return 0;
-}
-
-int Cpu::JpC(){
-	return JpBranch(cFlg, true);
-}
-
-/*0xdb
-No OpCode
-*/
-
-int Cpu::CallC(){
-	return CallBranch(cFlg, true);
-}
-
-/*0xdd
-No OpCode
-*/
-
-int Cpu::SbcImm(){
-	Sbc(Imm());
-	return 0;
-}
-
-int Cpu::Rst18(){
-	Push16(registerPC);
-	registerPC = 0x0018;
-	return 0;
-}
-
-/*0xe0*/
-int Cpu::LdffImmA(){
-	ushort addr;
-	addr = static_cast<ushort>(Imm());
-	return IOReg(addr, registerA);
-}
-
-int Cpu::PopHL(){
-	char upper, lower;
-	Pop88(&upper, &lower);
-	registerHL = Byte1to2(upper, lower);
-	return 0;
-}
-
-int Cpu::LdffcA(){
-	ushort addr;
-	addr = static_cast<ushort>(registerC);
-	return IOReg(addr, registerA);
-}
-
-/*
-0xe3, 0xe4
-No OpeCode
-
-*/
-
-int Cpu::PushHL(){
-	Push16(registerHL);
-	return 0;
-}
-
-int Cpu::AndImm(){
-	And(Imm());
-	return 0;
-}
-
-int Cpu::Rst20(){
-	Push16(registerPC);
-	registerPC = 0x0020;
-	return 0;
-}
-
-int Cpu::AddSPImm(){
-	char value;
-	ushort temp;
-	registerF &= 0x0f;
-	value = Imm();
-	registerF |= HalfCarry(static_cast<char>(registerSP), value);
-	temp = registerSP & 0xff00;
-	registerSP += C2S(value);
-	if ((registerSP & 0xff00) != temp){
-		registerF |= 0x10;
-	}
-	if (CheckBit(value, 7)){
-		registerF ^= 0x10;
-	}
-	return 0;
-}
-
-int Cpu::JpHL(){
-	registerPC = registerHL;
-	return 0;
-}
-
-int Cpu::LdAbsA(){
-	return StX(Abs(), registerA);
-}
-
-/*0xeb, 0xec, 0xed
-No OpCode
-*/
-
-int Cpu::XorImm(){
-	Xor(Imm());
-	return 0;
-}
-
-int Cpu::Rst28(){
-	Push16(registerPC);
-	registerPC = 0x0028;
-	return 0;
-}
-
-/*0xf0*/
-int Cpu::LdAffImm(){
-	ushort addr;
-	addr = 0xff00 | static_cast<ushort>(Imm());
-	registerA = *MemoryMap(addr);
-	return 0;
-}
-
-int Cpu::PopAF(){
-	Pop88(&registerA, &registerF);
-	registerF &= 0xf0;
-	return 0;
-}
-
-int Cpu::LdAffc(){
-	ushort addr;
-	addr = 0xff00 | static_cast<ushort>(registerC);
-	registerA = *MemoryMap(addr);
-	return 0;
-}
-
-int Cpu::Di(){
-	ime = false;
-	return 0;
-}
-/*
-0xf4
-No OpeCode
-
-*/
-
-int Cpu::PushAF(){
-	Push88(registerA, registerF);
-	return 0;
-}
-
-int Cpu::OrImm()
-{
-	Or(Imm());
-	return 0;
-}
-
-int Cpu::Rst30()
-{
-	Push16(registerPC);
-	registerPC = 0x0030;
-	return 0;
-}
-
-int Cpu::LdHLSPImm(){
-	ushort temp;
-	temp = registerSP;
-	AddSPImm();
-	registerHL = registerSP;
-	registerSP = temp;
-	return 0;
-}
-
-int Cpu::LdSPHL(){
-	registerSP = registerHL;
-	return 0;
-}
-
-int Cpu::LdAAbs(){
-	registerA = *MemoryMap(Abs());
-	return 0;
-}
-
-int Cpu::Ei(){
-	ime = true;
-	return 0;
-}
-
-/* 0xfd
-No OpCode
-*/
-
-int Cpu::CpImm(){
-	Cp(Imm());
-	return 0;
-}
-
-int Cpu::Rst38(){
-	Push16(registerPC);
-	registerPC = 0x0038;
-	return 0;
-}
-
-//prefix
-//0x00~0x3f
-void Cpu::Shift(ushort num, char *value){
-	(this->*shiftFunc[num])(value);
-	if (*value == 0){
-		registerF |= 0x80;
-	}
-}
-
-void Cpu::BitCheck(ushort num, char *value){
-	registerF &= 0x3f;
-	if (CheckBit(*value, static_cast<int>(num))){
-		registerF |= 0x20; //0b0010 0000
-	}else{
-		registerF |= 0xa0; //0x1010 0000
-	}
-}
-
-void Cpu::BitRes(ushort num, char *value){
-	 *value &= 0xff ^ (1 << num);
 }
 		
-void Cpu::BitSet(ushort num, char *value){
-	*value |= 1 << num;
+int Cpu::CpXZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	CmO(registerX, temp);
+	return 0;
 }
+		
+int Cpu::CpXAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	CmO(registerX, temp);
+	return 0;
+}
+		
+int Cpu::CpYIm(){
+	CmO(registerY, registerPC++);
+	return 0;
+}
+		
+int Cpu::CpYZpg(){
+	uint16_t temp;
+	Zpg(&temp);
+	CmO(registerY, temp);
+	return 0;
+}
+		
+int Cpu::CpYAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	CmO(registerY, temp);
+	return 0;
+}
+		
+int Cpu::PhaImp(){
+	PhO(registerA);
+	return 0;
+}
+		
+int Cpu::PhpImp(){
+	StatusRegi(bFlg, true);
+	PhO(registerP);
+	return 0;
+}
+		
+int Cpu::PlaImp(){
+	PlO(&registerA);
+	return 0;
+}
+		
+int Cpu::PlpImp(){
+	PlO(&registerP);
+	return 0;
+}
+		
+int Cpu::JmpAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	registerPC = temp;
+	return 0;
+}
+		
+int Cpu::JmpInd(){
+	uint16_t temp;
+	Ind(&temp);
+	registerPC = temp;
+	return 0;
+}
+		
+int Cpu::JsrAbs(){
+	uint16_t temp;
+	Abs(&temp);
+	Jsr(temp);
+	return 0;
+}
+	
+int Cpu::RtsImp(){
+	Rts();
+	return 0;
+}
+		
+int Cpu::RtiImp(){
+	Rti();
+	return 0;
+}
+	
+int Cpu::BccRel(){
+	return Bxx(cFlg, false);
+}
+
+int Cpu::BcsRel(){
+	return Bxx(cFlg, true);
+}
+
+int Cpu::BeqRel(){
+	return Bxx(zFlg, true);
+}
+		
+int Cpu::BneRel(){
+	return Bxx(zFlg, false);
+}
+		
+int Cpu::BvcRel(){
+	return Bxx(vFlg, false);
+}
+		
+int Cpu::BvsRel(){
+	return Bxx(vFlg, true);
+}
+
+int Cpu::BplRel(){
+	return Bxx(nFlg, false);
+}
+
+int Cpu::BmiRel(){
+	return Bxx(nFlg, true);
+}
+		
+int Cpu::SecImp(){
+	StatusRegi(cFlg, true);
+	return 0;
+}
+		
+int Cpu::ClcImp(){
+	StatusRegi(cFlg, false);
+	return 0;
+}
+		
+int Cpu::SeiImp(){
+	StatusRegi(iFlg, true);
+	return 0;
+}
+	
+int Cpu::CliImp(){
+	StatusRegi(iFlg, false);
+	return 0;
+}
+
+int Cpu::SedImp(){
+	StatusRegi(dFlg, true);
+	return 0;
+}
+		
+int Cpu::CldImp(){
+	StatusRegi(dFlg, false);
+	return 0;
+}
+		
+int Cpu::ClvImp(){
+	StatusRegi(vFlg, false);
+	return 0;
+}
+
+int Cpu::BrkImp(){
+	if (iFlg == false){
+		StatusRegi(bFlg, true);
+		Brk(0xfffe);
+	}
+	return 0;
+}
+		
+int Cpu::Nop1(){
+	return 0;
+}
+
+//以下、非公式オペコード
+
+int Cpu::Kill(){
+	irq.irqStr.rst = true;
+	return 0;
+}
+
+int Cpu::Nop2(){
+	++registerPC;
+	return 0;
+}
+
+int Cpu::Nop3(){
+	registerPC += 2;
+	return 0;
+}
+
+int Cpu::NopAbsX(){
+	uint16_t temp;
+	return AbsO(registerX, &temp);
+}
+
+int Cpu::SLOXInd(){
+	uint16_t temp;
+	int counter;
+	OInd(registerX, &temp);
+	counter = Asl(temp);
+	Ora(temp);
+	return counter;
+}
+
+int Cpu::SLOIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	counter = Asl(temp);
+	Ora(temp);
+	return counter;
+}
+
+int Cpu::SLOZpg(){
+	uint16_t temp;
+	int counter;
+	Zpg(&temp);
+	counter = Asl(temp);
+	Ora(temp);
+	return counter;
+}
+
+int Cpu::SLOZpgX(){
+	uint16_t temp;
+	int counter;
+	ZpgO(registerX, &temp);
+	counter = Asl(temp);
+	Ora(temp);
+	return counter;
+}
+
+int Cpu::SLOAbs(){
+	uint16_t temp;
+	int counter;
+	Abs(&temp);
+	counter = Asl(temp);
+	Ora(temp);
+	return counter;
+}
+
+int Cpu::SLOAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	counter = Asl(temp);
+	Ora(temp);
+	return counter;
+}
+
+int Cpu::SLOAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	counter = Asl(temp);
+	Ora(temp);
+	return counter;
+}
+
+int Cpu::ANCIm(){
+	And(registerPC++);
+	StatusRegi(cFlg, CheckBit(registerA, 7));
+	return 0;
+}
+
+int Cpu::RLAXInd(){
+	uint16_t temp;
+	int counter;
+	OInd(registerX, &temp);
+	counter = Rol(temp);
+	And(temp);
+	return counter;
+}
+
+int Cpu::RLAIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	counter =Rol(temp);
+	And(temp);
+	return counter;
+}
+
+int Cpu::RLAZpg(){
+	uint16_t temp;
+	int counter;
+	Zpg(&temp);
+	counter = Rol(temp);
+	And(temp);
+	return counter;
+}
+
+int Cpu::RLAZpgX(){
+	uint16_t temp;
+	int counter;
+	ZpgO(registerX, &temp);
+	counter = Rol(temp);
+	And(temp);
+	return counter;
+}
+
+int Cpu::RLAAbs(){
+	uint16_t temp;
+	int counter;
+	Abs(&temp);
+	counter = Rol(temp);
+	And(temp);
+	return counter;
+}
+
+int Cpu::RLAAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	counter = Rol(temp);
+	And(temp);
+	return counter;
+}
+
+int Cpu::RLAAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	counter = Rol(temp);
+	And(temp);
+	return counter;
+}
+
+int Cpu::SREXInd(){
+	uint16_t temp;
+	int counter;
+	OInd(registerX, &temp);
+	counter = Lsr(temp);
+	Eor(temp);
+	return counter;
+}
+
+int Cpu::SREIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	counter = Lsr(temp);
+	Eor(temp);
+	return counter;
+}
+
+int Cpu::SREZpg(){
+	uint16_t temp;
+	int counter;
+	Zpg(&temp);
+	counter = Lsr(temp);
+	Eor(temp);
+	return counter;
+}
+
+int Cpu::SREZpgX(){
+	uint16_t temp;
+	int counter;
+	ZpgO(registerX, &temp);
+	counter = Lsr(temp);
+	Eor(temp);
+	return counter;
+}
+
+int Cpu::SREAbs(){
+	uint16_t temp;
+	int counter;
+	Abs(&temp);
+	counter = Lsr(temp);
+	Eor(temp);
+	return counter;
+}
+
+int Cpu::SREAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	counter = Lsr(temp);
+	Eor(temp);
+	return counter;
+}
+
+int Cpu::SREAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	counter = Lsr(temp);
+	Eor(temp);
+	return 0;
+}
+
+int Cpu::ALRIm(){
+	And(registerPC++);
+	LsrA(&registerA);
+	return 0;
+}
+
+int Cpu::RRAXInd(){
+	uint16_t temp;
+	int counter;
+	OInd(registerX, &temp);
+	counter = Ror(temp);
+	Adc(&registerA, temp);
+	return counter;
+}
+
+int Cpu::RRAIndY(){
+	uint16_t temp;
+	int counter;
+	counter = IndO(registerY, &temp);
+	counter = Ror(temp);
+	Adc(&registerA, temp);
+	return counter;
+}
+
+int Cpu::RRAZpg(){
+	uint16_t temp;
+	int counter;
+	Zpg(&temp);
+	counter = Ror(temp);
+	Adc(&registerA, temp);
+	return counter;
+}
+
+int Cpu::RRAZpgX(){
+	uint16_t temp;
+	int counter;
+	ZpgO(registerX, &temp);
+	counter = Ror(temp);
+	Adc(&registerA, temp);
+	return counter;
+}
+
+int Cpu::RRAAbs(){
+	uint16_t temp;
+	int counter;
+	Abs(&temp);
+	counter = Ror(temp);
+	Adc(&registerA, temp);
+	return counter;
+}
+
+int Cpu::RRAAbsX(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerX, &temp);
+	counter = Ror(temp);
+	Adc(&registerA, temp);
+	return 0;
+}
+
+int Cpu::RRAAbsY(){
+	uint16_t temp;
+	int counter;
+	counter = AbsO(registerY, &temp);
+	counter = Ror(temp);
+	Adc(&registerA, temp);
+	return counter;
+}
+
+int Cpu::ARRIm(){
+	uint8_t temp;
+	And(registerPC++);
+	temp = registerP & 0x40;
+	RorA(&registerA);
+	registerP |= temp; 
+	return 0;
+}
+
+int Cpu::SAXXInd(){
+	uint16_t temp;
+	int counter;
+	OInd(registerX, &temp);
+	counter = StO(temp, registerA & registerX);
+	return counter;
+}
+
+int Cpu::SAXZpg(){
+	uint16_t temp;
+	int counter;
+	Zpg(&temp);
+	counter = StO(temp, registerA & registerX);
+	return counter;
+}
+
+int Cpu::SAXAbs(){
+	uint16_t temp;
+	int counter;
+	Abs(&temp);
+	counter = StO(temp, registerA & registerX);
+	return counter;
+}
+
+int Cpu::XAAIm(){
+	TrO(&registerA, registerX);
+	And(registerPC++);
+	return 0;
+}
+
+
